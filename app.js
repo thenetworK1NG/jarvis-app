@@ -64,6 +64,7 @@ try {
 
 var DEVICE_ID = null;
 var DEVICE_NAME = null;
+var PRESENCE_KEY = 'localnetwork';
 
 function genUuid() {
     try {
@@ -306,9 +307,7 @@ var _presenceTimer = 0;
 
 function publishPresence() {
     if (!DB) return;
-    var userKey = normalizeUsername(getSessionUser());
-    if (!userKey) return;
-    var ref = DB.ref('presence/' + userKey + '/' + getDeviceId());
+    var ref = DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId());
     try {
         ref.onDisconnect().set({
             username: getSessionUser(), name: presenceName(),
@@ -324,9 +323,7 @@ function publishPresence() {
 
 function heartbeatPresence() {
     if (!DB) return;
-    var userKey = normalizeUsername(getSessionUser());
-    if (!userKey) return;
-    DB.ref('presence/' + userKey + '/' + getDeviceId()).update({
+    DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId()).update({
         online: true,
         lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
@@ -335,9 +332,7 @@ function heartbeatPresence() {
 function stopPresence() {
     if (_presenceTimer) { clearInterval(_presenceTimer); _presenceTimer = 0; }
     if (!DB) return;
-    var userKey = normalizeUsername(getSessionUser());
-    if (!userKey) return;
-    try { DB.ref('presence/' + userKey + '/' + getDeviceId()).set({ online: false }); } catch (e) {}
+    try { DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId()).set({ online: false }); } catch (e) {}
 }
 
 function formatTimeAgo(ts) {
@@ -392,12 +387,10 @@ function updateJarvisCard() {
 
 function renderDevices() {
     var sec = $('device-section'), wrap = $('device-list');
-    var whitelist = getWhitelistUsers();
     var items = [];
     Object.keys(onlineDevices).forEach(function(id) {
         var d = onlineDevices[id];
         if (!d || !d.online) return;
-        if (whitelist.length > 0 && whitelist.indexOf((d.username || '').toLowerCase()) === -1) return;
         d.isSelf = (id === getDeviceId());
         items.push(d);
     });
@@ -454,7 +447,7 @@ function renderDevices() {
         var hint = document.createElement('div');
         hint.className = 'recent-time';
         hint.style.padding = '8px 2px';
-        hint.textContent = 'Only your phone is online. Other whitelisted devices appear here when signed in.';
+        hint.textContent = 'Only your phone is online. J.A.R.V.I.S. will appear here when running on your PC.';
         wrap.appendChild(hint);
     }
     updateJarvisCard();
@@ -472,25 +465,21 @@ function maybeAutoLink() {
 
 function listenForPresence() {
     if (!DB) return;
-    DB.ref('presence/').on('value', function(snap) {
+    DB.ref('presence/' + PRESENCE_KEY).on('value', function(snap) {
         var data = snap.val();
         var next = {};
         if (data && typeof data === 'object') {
-            Object.keys(data).forEach(function(uKey) {
-                var byDev = data[uKey];
-                if (!byDev || typeof byDev !== 'object') return;
-                Object.keys(byDev).forEach(function(devId) {
-                    var e = byDev[devId];
-                    if (!e) return;
-                    next[devId] = {
-                        deviceId: devId,
-                        username: e.username || uKey,
-                        label: e.name || e.username || devId,
-                        lastSeen: (typeof e.lastSeen === 'number' ? e.lastSeen : Date.now()),
-                        online: !!e.online,
-                        isJarvis: !!e.isJarvis
-                    };
-                });
+            Object.keys(data).forEach(function(devId) {
+                var e = data[devId];
+                if (!e) return;
+                next[devId] = {
+                    deviceId: devId,
+                    username: e.username || 'device',
+                    label: e.name || e.username || devId,
+                    lastSeen: (typeof e.lastSeen === 'number' ? e.lastSeen : Date.now()),
+                    online: !!e.online,
+                    isJarvis: !!e.isJarvis
+                };
             });
         }
         onlineDevices = next;
@@ -1138,7 +1127,7 @@ async function connectToDevice(deviceId, label) {
         var reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         currentReqRef = DB.ref('requests/' + deviceId + '/' + reqId);
         await currentReqRef.set({
-            from: { deviceId: getDeviceId(), name: getDeviceName(), username: getSessionUser() },
+            from: { deviceId: getDeviceId(), name: getDeviceName(), username: getSessionUser() || 'phone' },
             offer: pc.localDescription.sdp,
             createdAt: firebase.database.ServerValue.TIMESTAMP
         });
@@ -1190,7 +1179,7 @@ function listenForRequests() {
             try { snap.ref.remove(); } catch (e) {}
             return;
         }
-        if (!req.from || !req.from.deviceId || !req.from.username) {
+        if (!req.from || !req.from.deviceId) {
             try { snap.ref.remove(); } catch (e) {}
             return;
         }
@@ -1360,12 +1349,11 @@ function startApp() {
 }
 
 (function boot() {
-    if (getSessionUser()) {
-        startApp();
-    } else {
-        showScreen('login');
-        setTimeout(function() { try { $('login-username').focus(); } catch (e) {} }, 60);
+    if (!getSessionUser()) {
+        setSessionUser('phone');
     }
+    if (!DEVICE_NAME) DEVICE_NAME = 'Phone';
+    startApp();
 })();
 
 try {
@@ -1373,3 +1361,51 @@ try {
         navigator.serviceWorker.register('sw.js').catch(function() {});
     }
 } catch (e) {}
+
+// Handle files shared to this app via the OS share menu
+if (navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'shared-files') {
+            handleSharedFiles(e.data.names);
+        }
+    });
+}
+
+function handleSharedFiles(names) {
+    if (!names || !names.length) return;
+    caches.open('jarvis-shared-files').then(function (cache) {
+        var promises = names.map(function (name) {
+            return cache.match('./shared/' + name).then(function (resp) {
+                if (!resp) return null;
+                return resp.blob().then(function (blob) {
+                    return new File([blob], name, { type: blob.type || 'application/octet-stream' });
+                });
+            });
+        });
+        return Promise.all(promises);
+    }).then(function (files) {
+        var valid = files.filter(function (f) { return f !== null; });
+        if (valid.length === 0) return;
+        fileQueue.push.apply(fileQueue, valid);
+        renderSummary();
+        // Auto-send if already linked
+        if (ctrlDC && ctrlDC.readyState === 'open') {
+            sendFiles();
+        } else {
+            // Wait for auto-link then send
+            _pendingAutoSend = true;
+        }
+        // Clear the shared files cache
+        caches.delete('jarvis-shared-files').catch(function () {});
+    }).catch(function () {});
+}
+
+var _pendingAutoSend = false;
+var _origTryConnect = tryConnect;
+tryConnect = function () {
+    _origTryConnect.apply(this, arguments);
+    if (_pendingAutoSend && fileQueue.length > 0 && ctrlDC && ctrlDC.readyState === 'open') {
+        _pendingAutoSend = false;
+        setTimeout(function () { sendFiles(); }, 500);
+    }
+};

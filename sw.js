@@ -1,5 +1,5 @@
 'use strict';
-var CACHE = 'jarvis-command-v3';
+var CACHE = 'jarvis-command-v4';
 var ASSETS = [
   './',
   './index.html',
@@ -24,9 +24,57 @@ self.addEventListener('activate', function (e) {
       .map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
+
+// Handle Web Share Target POST requests
 self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET') return;
   var url = new URL(e.request.url);
+
+  // Share target: receive shared files via POST
+  if (e.request.method === 'POST' && url.pathname === url.pathname.replace(/[^/]*$/, 'index.html')) {
+    e.respondWith(
+      e.request.formData().then(function (formData) {
+        var files = formData.getAll('shared-files');
+        if (!files || files.length === 0) {
+          return Response.redirect('./index.html', 303);
+        }
+        // Store files in a temporary cache for the app to pick up
+        return caches.open('jarvis-shared-files').then(function (cache) {
+          var promises = files.map(function (file, i) {
+            var name = file.name || ('shared-file-' + i);
+            var headers = new Headers();
+            headers.set('Content-Type', file.type || 'application/octet-stream');
+            headers.set('X-File-Name', name);
+            headers.set('X-File-Size', file.size);
+            return file.arrayBuffer().then(function (buf) {
+              return cache.put(
+                new Request('./shared/' + name),
+                new Response(buf, { headers: headers })
+              );
+            });
+          });
+          return Promise.all(promises).then(function () {
+            // Notify all open clients about the shared files
+            return self.clients.matchAll().then(function (clients) {
+              clients.forEach(function (client) {
+                client.postMessage({
+                  type: 'shared-files',
+                  count: files.length,
+                  names: files.map(function (f) { return f.name; })
+                });
+              });
+              return Response.redirect('./index.html?shared=' + files.length, 303);
+            });
+          });
+        });
+      }).catch(function () {
+        return Response.redirect('./index.html', 303);
+      })
+    );
+    return;
+  }
+
+  // Normal GET requests: cache-first
+  if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
   e.respondWith(
     caches.match(e.request).then(function (hit) {
