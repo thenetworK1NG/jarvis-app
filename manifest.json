@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "J.A.R.V.I.S. Command",
+  "short_name": "JARVIS",
+  "description": "Networking Technologies command deck. Talk to J.A.R.V.I.S., send files straight into his quickshare through the wetransfer system, and wake him remotely from anywhere.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#05080e",
+  "theme_color": "#05080e",
+  "categories": ["productivity", "utilities", "communication"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
