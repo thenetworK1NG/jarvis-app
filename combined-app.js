@@ -1,6 +1,6 @@
 /* J.A.R.V.I.S. Command — combined deck
- * - Talk: uses the exact same Firebase chat bridge as the JARVIS Chat PWA
- *   (jarvischat/inbox + jarvischat/status) so messages reach J.A.R.V.I.S.
+ * - Talk: uses a shared Firebase sync path (jarvischat/sync) so the phone
+ *   and PC see the same messages in real time.
  * - Transfer: reuses the wetransfer phone app engine (app.js) untouched.
  * - Wake: if J.A.R.V.I.S. is offline, writes a wake request to Firebase that
  *   the PC-side wake_listener.py watches and uses to boot jarvis.py.
@@ -779,9 +779,13 @@
 
   /* ── Sites tab: GitHub Pages deployments ──────────────────────────────── */
   var JARVIS_URL = 'http://127.0.0.1:5001';
+  var GH_API = 'https://api.github.com';
   var sitesTabEl = $('tab-sites');
   var sitesRendered = false;
-  var sitesPollTimer = null;
+
+  function getGhUsername() {
+    return (window.__GH_USERNAME || '').trim();
+  }
 
   function fetchSites() {
     var listEl = $('sites-list');
@@ -789,40 +793,72 @@
     var statusEl = $('sites-status');
     if (!listEl) return;
 
-    fetch(JARVIS_URL + '/api/github/pages-repos')
+    var username = getGhUsername();
+    if (!username) {
+      statusEl.textContent = 'GitHub not linked';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    statusEl.textContent = 'Loading\u2026';
+
+    fetch(GH_API + '/users/' + encodeURIComponent(username) + '/repos?per_page=100&sort=pushed&direction=desc')
       .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var repos = (d.repos || []).filter(function (r) { return r.has_pages; });
-        if (!repos.length) {
+      .then(function (repos) {
+        if (!Array.isArray(repos)) {
+          statusEl.textContent = 'Error loading repos';
+          return;
+        }
+        // Find repos that likely have GitHub Pages (have homepage set, or have gh-pages branch)
+        // For now show all repos sorted by last push
+        var sites = repos.filter(function (r) { return r.has_pages || r.homepage; });
+        var allRepos = repos;
+
+        // Show Pages-enabled repos first, then others
+        var toShow = sites.length ? sites : allRepos;
+        if (!toShow.length) {
           listEl.innerHTML = '';
           emptyEl.classList.remove('hidden');
-          statusEl.textContent = '0 sites';
+          statusEl.textContent = '0 repos';
           return;
         }
         emptyEl.classList.add('hidden');
-        statusEl.textContent = repos.length + ' site' + (repos.length === 1 ? '' : 's');
+        statusEl.textContent = (sites.length || toShow.length) + ' repo' + (toShow.length === 1 ? '' : 's');
         listEl.innerHTML = '';
-        repos.forEach(function (repo) {
+
+        toShow.forEach(function (repo) {
+          var pagesUrl = 'https://' + username + '.github.io/' + repo.name + '/';
+          var hasPages = !!repo.has_pages;
           var card = document.createElement('div');
           card.className = 'site-card';
           var timeAgo = repo.pushed_at ? formatTimeAgo(repo.pushed_at) : '';
           card.innerHTML =
             '<div class="site-name">' +
-              '<span class="site-live-dot pending" data-url="' + escHtml(repo.pages_url || '') + '"></span>' +
+              '<span class="site-live-dot pending" data-url="' + escHtml(pagesUrl) + '"></span>' +
               escHtml(repo.name) +
+              (repo.fork ? ' <span style="font-size:.6rem;color:var(--muted-2)">(fork)</span>' : '') +
             '</div>' +
             (repo.description ? '<div class="site-desc">' + escHtml(repo.description) + '</div>' : '') +
             '<div class="site-meta">' +
-              '<span>Updated ' + timeAgo + '</span>' +
+              '<span>' + (repo.language || 'repo') + '</span>' +
+              '<span>\u00b7</span>' +
+              '<span>' + (repo.stargazers_count || 0) + ' \u2605</span>' +
+              '<span>\u00b7</span>' +
+              '<span>pushed ' + timeAgo + '</span>' +
             '</div>' +
             '<div class="site-actions">' +
-              '<button class="site-btn open" data-url="' + escHtml(repo.pages_url || '') + '">Open</button>' +
-              '<button class="site-btn open" data-url="' + escHtml(repo.html_url || '') + '">Source</button>' +
+              (hasPages
+                ? '<button class="site-btn open" data-url="' + escHtml(pagesUrl) + '">Live Site</button>'
+                : '<button class="site-btn disabled">No Pages</button>') +
+              '<button class="site-btn open" data-url="' + escHtml(repo.html_url) + '">Source</button>' +
             '</div>';
           listEl.appendChild(card);
-          // Poll live status
-          if (repo.pages_url) {
-            pollSiteLive(card.querySelector('.site-live-dot'), repo.pages_url);
+          // Poll live status only for Pages-enabled repos
+          if (hasPages) {
+            pollSiteLive(card.querySelector('.site-live-dot'), pagesUrl);
+          } else {
+            var dot = card.querySelector('.site-live-dot');
+            if (dot) dot.className = 'site-live-dot offline';
           }
         });
         // Wire up open buttons
@@ -840,16 +876,19 @@
 
   function pollSiteLive(dotEl, url) {
     if (!dotEl) return;
-    fetch(JARVIS_URL + '/api/deploy-check?url=' + encodeURIComponent(url))
+    // Try the PC backend first, fall back to direct fetch
+    var checkUrl = JARVIS_URL + '/api/deploy-check?url=' + encodeURIComponent(url);
+    fetch(checkUrl)
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (d.live) {
-          dotEl.className = 'site-live-dot live';
-        } else {
-          setTimeout(function () { pollSiteLive(dotEl, url); }, 4000);
-        }
-      }).catch(function () {
-        dotEl.className = 'site-live-dot offline';
+        if (d.live) { dotEl.className = 'site-live-dot live'; }
+        else { setTimeout(function () { pollSiteLive(dotEl, url); }, 5000); }
+      })
+      .catch(function () {
+        // Backend unreachable — try direct HEAD fetch
+        fetch(url, { method: 'HEAD', mode: 'no-cors' })
+          .then(function () { dotEl.className = 'site-live-dot live'; })
+          .catch(function () { dotEl.className = 'site-live-dot offline'; });
       });
   }
 
@@ -869,12 +908,8 @@
     sitesTabEl.addEventListener('click', function () {
       showScreen('sites');
       updateTabs('sites');
-      if (!sitesRendered) {
-        sitesRendered = true;
-        fetchSites();
-      }
-      // Refresh every time user opens the tab
-      else { fetchSites(); }
+      // Always refresh when opened
+      fetchSites();
     });
   }
 
