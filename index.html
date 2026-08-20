@@ -682,6 +682,23 @@ input,textarea{-webkit-user-select:text;user-select:text}
     </div>
   </div>
 
+  <!-- ═══ SITES ═══ -->
+  <div id="screen-sites" class="screen">
+    <div class="sites-top">
+      <h2>GITHUB PAGES</h2>
+      <span id="sites-status" class="sites-status">Loading...</span>
+    </div>
+    <div id="sites-username-row" class="sites-username-row hidden">
+      <input id="sites-username-input" class="sites-username-input" type="text" placeholder="GitHub username" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button id="sites-username-save" class="sites-username-save">GO</button>
+    </div>
+    <div id="sites-list" class="sites-list"></div>
+    <div id="sites-empty" class="sites-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <p>Enter your GitHub username to see your repos.</p>
+    </div>
+  </div>
+
 </div>
 <!-- ╒═══ chat history sheet ═══ -->
 <div id="chatSheetBackdrop">
@@ -712,23 +729,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 
 <div id="toast"></div>
 <div id="wake-strip" class="wake-strip hidden"></div>
-
-  <!-- ═══ SITES ═══ -->
-  <div id="screen-sites" class="screen">
-    <div class="sites-top">
-      <h2>GITHUB PAGES</h2>
-      <span id="sites-status" class="sites-status">Loading...</span>
-    </div>
-    <div id="sites-username-row" class="sites-username-row hidden">
-      <input id="sites-username-input" class="sites-username-input" type="text" placeholder="GitHub username" autocomplete="off" autocapitalize="none" spellcheck="false">
-      <button id="sites-username-save" class="sites-username-save">GO</button>
-    </div>
-    <div id="sites-list" class="sites-list"></div>
-    <div id="sites-empty" class="sites-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      <p>Enter your GitHub username to see your repos.</p>
-    </div>
-  </div>
 
   <!-- ═══ bottom tab bar ═══ -->
 <nav id="tabbar">
