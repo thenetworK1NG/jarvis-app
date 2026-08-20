@@ -302,6 +302,8 @@
     if (typingEl) return;
     thinkingState = true;
     paintChatStatus(true, false);
+    var stopBtn = $('stop-btn');
+    if (stopBtn) stopBtn.classList.remove('hidden');
     typingEl = document.createElement('div');
     typingEl.className = 'typing';
     for (var i = 0; i < 3; i++) {
@@ -317,6 +319,8 @@
   function hideTyping() {
     if (thinkingTimer) { clearTimeout(thinkingTimer); thinkingTimer = null; }
     if (typingEl) { typingEl.remove(); typingEl = null; }
+    var stopBtn = $('stop-btn');
+    if (stopBtn) stopBtn.classList.add('hidden');
     thinkingState = false;
     paintChatStatus(true, false);
   }
@@ -443,6 +447,13 @@
     inputEl.focus();
   }
   $('send').addEventListener('click', sendChat);
+  $('stop-btn').addEventListener('click', function () {
+    hideTyping();
+    if (typeof SYNC !== 'undefined' && SYNC) {
+      SYNC.root.child('cancel').set({ ts: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+    }
+    toast('Generation stopped.');
+  });
   // Enter always inserts a newline — send only via the button.
   inputEl.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
