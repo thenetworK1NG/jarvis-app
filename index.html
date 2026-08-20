@@ -471,6 +471,22 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .sites-empty.hidden{display:none;}
 .sites-empty p{font-size:.82rem;line-height:1.5;}
 .sites-hint{font-size:.7rem;color:var(--muted-2);opacity:.6;}
+.sites-username-row{
+  display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;
+}
+.sites-username-row.hidden{display:none;}
+.sites-username-input{
+  flex:1;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:9px 12px;font-size:.82rem;outline:none;
+  font-family:var(--font-body);transition:border-color .2s;
+}
+.sites-username-input:focus{border-color:var(--accent);}
+.sites-username-save{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border:none;
+  border-radius:8px;padding:9px 16px;font-size:.72rem;font-weight:700;
+  letter-spacing:.12em;cursor:pointer;
+}
+.sites-username-save:active{opacity:.8;}
 
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes pulseAccent{0%,100%{opacity:1}50%{opacity:.4}}
@@ -703,11 +719,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
       <h2>GITHUB PAGES</h2>
       <span id="sites-status" class="sites-status">Loading...</span>
     </div>
+    <div id="sites-username-row" class="sites-username-row hidden">
+      <input id="sites-username-input" class="sites-username-input" type="text" placeholder="GitHub username" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button id="sites-username-save" class="sites-username-save">GO</button>
+    </div>
     <div id="sites-list" class="sites-list"></div>
-    <div id="sites-empty" class="sites-empty hidden">
+    <div id="sites-empty" class="sites-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      <p>No GitHub Pages deployments found.</p>
-      <p class="sites-hint">Deploy a project from the PC build space to see it here.</p>
+      <p>Enter your GitHub username to see your repos.</p>
     </div>
   </div>
 
