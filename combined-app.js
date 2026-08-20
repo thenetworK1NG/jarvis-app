@@ -262,6 +262,27 @@
     t.className = 'time';
     t.textContent = fmtTime(ts);
     el.appendChild(t);
+    // Tap to copy
+    el.addEventListener('click', function () {
+      if (window.getSelection && window.getSelection().toString()) return;
+      var raw = (cls === 'me' ? 'You: ' : 'J.A.R.V.I.S.: ') + text;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(raw).then(function () { toast('Copied to clipboard'); });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = raw; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); toast('Copied to clipboard'); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+    return el;
+  }
+
+  function stepBubble(text) {
+    var el = document.createElement('div');
+    el.className = 'msg step';
+    el.textContent = text;
     return el;
   }
 
@@ -269,6 +290,8 @@
 
   function showTyping() {
     if (typingEl) return;
+    thinkingState = true;
+    paintChatStatus(true, false);
     typingEl = document.createElement('div');
     typingEl.className = 'typing';
     for (var i = 0; i < 3; i++) {
@@ -281,6 +304,27 @@
   }
   function hideTyping() {
     if (typingEl) { typingEl.remove(); typingEl = null; }
+    thinkingState = false;
+    paintChatStatus(true, false);
+  }
+
+  function renderSteps(steps) {
+    if (!steps || typeof steps !== 'object') return;
+    var keys = Object.keys(steps).sort();
+    for (var i = 0; i < keys.length; i++) {
+      var s = steps[keys[i]];
+      if (!s) continue;
+      var label = '';
+      if (s.type === 'tool') {
+        label = (s.name || 'tool') + (s.target ? ' ' + s.target : '');
+        if (s.status) label += ' \u2022 ' + s.status;
+      } else if (s.type === 'step') {
+        label = 'Working\u2026 step ' + (s.stage || '');
+      } else if (s.text) {
+        label = s.text;
+      }
+      if (label) messagesEl.appendChild(stepBubble(label));
+    }
   }
 
   function render(msg, key) {
@@ -289,6 +333,7 @@
     var text = (msg.text || '').trim();
     var reply = (msg.reply || '').trim();
     if (text) messagesEl.appendChild(bubble('me', text, msg.ts));
+    if (msg.steps) renderSteps(msg.steps);
     if (reply) {
       messagesEl.appendChild(bubble('jarvis', reply, msg.repliedAt || msg.ts));
     }
@@ -364,10 +409,15 @@
   /* chat status (inside comms log) */
   var statusEl = $('conn-status');
   var buildEl = $('build-status');
+  var thinkingState = false;
   function paintChatStatus(o, build) {
-    statusEl.classList.toggle('up', o);
-    statusEl.classList.toggle('down', !o);
-    statusEl.textContent = o ? 'online' : 'offline';
+    if (thinkingState && o) {
+      statusEl.className = 'thinking';
+      statusEl.textContent = 'thinking';
+    } else {
+      statusEl.className = o ? 'up' : 'down';
+      statusEl.textContent = o ? 'online' : 'offline';
+    }
     if (buildEl) buildEl.classList.toggle('hidden', !build);
   }
   function checkStatus() {
@@ -381,6 +431,24 @@
   if (STATUS) { STATUS.on('value', checkStatus); }
   setInterval(checkStatus, 5000);
   checkStatus();
+
+  // Watch for processing messages to show thinking state
+  if (INBOX) {
+    INBOX.on('child_added', function (snap) {
+      var msg = snap.val() || {};
+      if (msg.status === 'processing') {
+        thinkingState = true;
+        paintChatStatus(true, false);
+      }
+    });
+    INBOX.on('child_changed', function (snap) {
+      var msg = snap.val() || {};
+      if (msg.status === 'done' || msg.status === 'new') {
+        thinkingState = false;
+        paintChatStatus(true, false);
+      }
+    });
+  }
 
   /* ── install as PWA ────────────────────────────────── */
   var installBtn = $('install');
