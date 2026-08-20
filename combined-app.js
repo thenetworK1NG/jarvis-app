@@ -12,11 +12,11 @@
 
   var firebaseOk = (typeof firebase !== 'undefined' && firebase.initializeApp);
   var DB = null;
-  var INBOX = null, STATUS = null, WAKE = null, WAKE_LISTENER = null;
+  var SYNC = null, STATUS = null, WAKE = null, WAKE_LISTENER = null;
   if (firebaseOk) {
     try {
       DB = firebase.database();
-      INBOX = DB.ref('jarvischat/inbox');
+      SYNC = DB.ref('jarvischat/sync');
       STATUS = DB.ref('jarvischat/status');
       WAKE = DB.ref('jarvischat/wake');
       WAKE_LISTENER = DB.ref('jarvischat/wakeListener');
@@ -229,6 +229,14 @@
   var inputEl = $('input');
   var rendered = {};
   var typingEl = null;
+  var activeChatId = null;
+  try {
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.type === 'jarvis-chat-active') {
+        activeChatId = e.data.chatId;
+      }
+    });
+  } catch (e) {}
 
   function fmtTime(ts) {
     if (!ts) return '';
@@ -351,17 +359,50 @@
     }
   }
 
-  if (INBOX) {
-    INBOX.on('child_added', function (snap) {
+  if (SYNC) {
+    SYNC.orderByChild('ts').on('child_added', function (snap) {
       var msg = snap.val() || {};
-      if (msg.status === 'processing') showTyping();
-      render(msg, snap.key);
+      var key = snap.key;
+      if (rendered[key]) return;
+      var sender = msg.sender || '';
+      var text = (msg.text || '').trim();
+      var replyData = msg.reply_data || {};
+      var reply = (replyData.reply || msg.reply || '').trim();
+      if (sender === 'user' && text) {
+        rendered[key] = true;
+        messagesEl.appendChild(bubble('me', text, msg.ts));
+        scrollBottom();
+      }
+      if (sender === 'assistant' && reply && !rendered[key + ':r']) {
+        rendered[key + ':r'] = true;
+        if (!rendered[key]) {
+          messagesEl.appendChild(bubble('me', text || '(phone message)', msg.ts));
+        }
+        messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || msg.ts));
+        if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
+        scrollBottom();
+        if (window._jarvisTTS) window._jarvisTTS(reply);
+      }
+      if (!sender && text && !reply) {
+        rendered[key] = true;
+        messagesEl.appendChild(bubble('me', text, msg.ts));
+        scrollBottom();
+      }
     });
-    INBOX.on('child_changed', function (snap) {
+    SYNC.orderByChild('ts').on('child_changed', function (snap) {
       var msg = snap.val() || {};
-      if (msg.status === 'processing') showTyping();
-      if (msg.status === 'done') hideTyping();
-      update(msg, snap.key);
+      var key = snap.key;
+      var replyData = msg.reply_data || {};
+      var reply = (replyData.reply || msg.reply || '').trim();
+      var sender = msg.sender || '';
+      if (sender === 'assistant' && reply && !rendered[key + ':r']) {
+        rendered[key + ':r'] = true;
+        messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || Date.now()));
+        if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
+        scrollBottom();
+        hideTyping();
+        if (window._jarvisTTS) window._jarvisTTS(reply);
+      }
     });
   }
 
@@ -373,8 +414,17 @@
   function sendChat() {
     var text = inputEl.value.trim();
     if (!text) return;
-    if (!INBOX) { toast('No chat link — is Firebase reachable?'); return; }
-    INBOX.push({ text: text, status: 'new', ts: Date.now() });
+    if (!SYNC) { toast('No chat link — is Firebase reachable?'); return; }
+    var chatId = activeChatId || window.activeChatId || 'default';
+    showTyping();
+    SYNC.push({
+      chatId: chatId,
+      sender: 'user',
+      text: text,
+      ts: Date.now(),
+      processed: false,
+      from: 'phone'
+    });
     inputEl.value = '';
     autoGrow();
     inputEl.focus();
@@ -399,7 +449,7 @@
   $('clearCancel').addEventListener('click', function () { clearBackdrop.classList.remove('show'); });
   $('clearGo').addEventListener('click', function () {
     clearBackdrop.classList.remove('show');
-    if (INBOX) INBOX.remove().catch(function () {});
+    if (SYNC) SYNC.remove().catch(function () {});
     rendered = {};
     messagesEl.innerHTML = '';
     hideTyping();
