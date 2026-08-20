@@ -283,6 +283,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #send{width:40px;height:40px;border-radius:50%;cursor:pointer;flex-shrink:0;display:grid;place-items:center;border:none;background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#fff;box-shadow:0 2px 12px var(--accent-soft);transition:filter .15s;}
 #send:hover{filter:brightness(1.1)}#send:active{filter:brightness(.9)}
 #send svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#stop-btn{width:40px;height:40px;border-radius:50%;cursor:pointer;flex-shrink:0;display:grid;place-items:center;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 2px 12px rgba(239,68,68,.3);transition:filter .15s;}
+#stop-btn:hover{filter:brightness(1.1)}#stop-btn:active{filter:brightness(.9)}
+#stop-btn svg{width:16px;height:16px;fill:currentColor;stroke:none}
 #mic-btn{width:40px;height:40px;border-radius:50%;cursor:pointer;flex-shrink:0;display:grid;place-items:center;border:1px solid var(--border);background:none;color:var(--muted);transition:all .2s;}
 #mic-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 #mic-btn:active{transform:scale(.9)}
@@ -562,6 +565,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
       </button>
       <button id="send" title="Send" aria-label="Send">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+      <button id="stop-btn" title="Stop generation" aria-label="Stop generation" class="hidden">
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
     </div>
   </div>
