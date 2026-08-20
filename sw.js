@@ -1,5 +1,5 @@
 'use strict';
-var CACHE = 'jarvis-command-v4';
+var CACHE = 'jarvis-command-v5';
 var ASSETS = [
   './',
   './index.html',
