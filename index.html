@@ -262,6 +262,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .msg.jarvis{align-self:flex-start;background:var(--panel);border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:4px 16px 16px 16px;color:var(--text);}
 .msg .time{display:block;font-size:.6rem;color:var(--muted-2);margin-top:4px}
 .msg.me .time{text-align:right}
+.msg a{color:var(--accent);text-decoration:underline;text-underline-offset:2px;word-break:break-all}
+.msg a:active{opacity:.7}
 .typing{align-self:flex-start;background:var(--panel);border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:4px 14px 14px 14px;padding:12px 15px;display:flex;gap:5px;align-items:center;}
 .typing .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1.2s infinite}
 .typing .dot:nth-child(2){animation-delay:.2s}
@@ -656,7 +658,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
-<script>window.__FB_CONFIG={"apiKey": "AIzaSyAwwm1NYa-jaKNqmJCGzKD6Blyq5VUVWuc", "databaseURL": "https://share-it-414ed-default-rtdb.firebaseio.com", "projectId": "share-it-414ed"};</script>
 <script src="app.js"></script>
 <script src="combined-app.js"></script>
 <script>
@@ -670,6 +671,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
   function uid(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
   function cur(){return chats.find(function(c){return c.id===activeId;});}
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function linkifyHtml(s){
+    var safe=esc(s);
+    return safe.replace(/(https?:\/\/[^\s&lt;&gt;"'\])]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+  }
   function fmt(ts){var d=new Date(ts);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});}
 
   function setTitle(t){
@@ -702,7 +707,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
       c.msgs.forEach(function(msg){
         var d=document.createElement('div');
         d.className='msg '+(msg.role==='user'?'me':'jarvis');
-        d.innerHTML=esc(msg.text)+'<span class="time">'+fmt(msg.ts)+'</span>';
+        d.innerHTML=linkifyHtml(msg.text)+'<span class="time">'+fmt(msg.ts)+'</span>';
         m.appendChild(d);});
       m.scrollTop=m.scrollHeight;}
     setTitle(c.title==='New chat'?'J.A.R.V.I.S.':c.title);

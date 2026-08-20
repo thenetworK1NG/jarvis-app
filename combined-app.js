@@ -235,10 +235,29 @@
     return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
+  var URL_RE = /(https?:\/\/[^\s<>'")\]]+)/g;
+  function linkify(s) {
+    var parts = s.split(URL_RE);
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < parts.length; i++) {
+      if (i % 2 === 1) {
+        var a = document.createElement('a');
+        a.href = parts[i];
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = parts[i];
+        frag.appendChild(a);
+      } else {
+        frag.appendChild(document.createTextNode(parts[i]));
+      }
+    }
+    return frag;
+  }
+
   function bubble(cls, text, ts) {
     var el = document.createElement('div');
     el.className = 'msg ' + cls;
-    el.textContent = text;
+    el.appendChild(linkify(text));
     var t = document.createElement('span');
     t.className = 'time';
     t.textContent = fmtTime(ts);
