@@ -308,23 +308,43 @@ var _presenceTimer = 0;
 function publishPresence() {
     if (!DB) return;
     var ref = DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId());
-    try {
-        ref.onDisconnect().set({
+    function doPublish() {
+        try {
+            ref.onDisconnect().set({
+                username: getSessionUser(), name: presenceName(),
+                deviceId: getDeviceId(), online: false
+            });
+        } catch (e) {}
+        ref.set({
             username: getSessionUser(), name: presenceName(),
-            deviceId: getDeviceId(), online: false
+            deviceId: getDeviceId(), online: true,
+            isJarvis: true,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
-    } catch (e) {}
-    ref.set({
-        username: getSessionUser(), name: presenceName(),
-        deviceId: getDeviceId(), online: true,
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-    });
+    }
+    try {
+        var connRef = DB.ref('.info/connected');
+        connRef.once('value', function(snap) {
+            if (snap.val() === true) {
+                doPublish();
+            } else {
+                connRef.on('value', function(snap2) {
+                    if (snap2.val() === true) {
+                        connRef.off('value');
+                        doPublish();
+                    }
+                });
+            }
+        });
+    } catch (e) {
+        doPublish();
+    }
 }
 
 function heartbeatPresence() {
     if (!DB) return;
     DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId()).update({
-        online: true,
+        online: true, isJarvis: true,
         lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
 }
@@ -463,6 +483,24 @@ function maybeAutoLink() {
     connectToDevice(j.deviceId, 'J.A.R.V.I.S.');
 }
 
+var _autoLinkRetry = 0;
+function scheduleAutoLinkRetry() {
+    if (state !== 'home' || autoConnected || reconnecting || _jarvisAutoDone) return;
+    if (_autoLinkRetry >= 5) return;
+    _autoLinkRetry++;
+    setTimeout(function() {
+        if (state !== 'home' || autoConnected || reconnecting || _jarvisAutoDone) return;
+        var j = findJarvisDevice();
+        if (j) {
+            _jarvisAutoDone = true;
+            _jarvisTargetId = j.deviceId;
+            connectToDevice(j.deviceId, 'J.A.R.V.I.S.');
+        } else {
+            scheduleAutoLinkRetry();
+        }
+    }, 2000);
+}
+
 function listenForPresence() {
     if (!DB) return;
     DB.ref('presence/' + PRESENCE_KEY).on('value', function(snap) {
@@ -485,6 +523,7 @@ function listenForPresence() {
         onlineDevices = next;
         renderDevices();
         maybeAutoLink();
+        if (!autoConnected && !_jarvisAutoDone && !reconnecting) scheduleAutoLinkRetry();
     });
 }
 
@@ -1172,6 +1211,17 @@ async function connectToDevice(deviceId, label) {
 function listenForRequests() {
     if (!DB) return;
     var myId = getDeviceId();
+    DB.ref('requests/' + myId).once('value', function(snap) {
+        var data = snap.val();
+        if (!data || typeof data !== 'object') return;
+        Object.keys(data).forEach(function(key) {
+            var r = data[key];
+            if (!r) return;
+            if (r.answer || r.status === 'connected' || (r.createdAt && Date.now() - r.createdAt > 30000)) {
+                try { DB.ref('requests/' + myId + '/' + key).remove(); } catch (e) {}
+            }
+        });
+    });
     DB.ref('requests/' + myId).on('child_added', function(snap) {
         var req = snap.val();
         if (!req || !req.offer) return;
