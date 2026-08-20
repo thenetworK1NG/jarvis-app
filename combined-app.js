@@ -45,9 +45,10 @@
   var tabs = { talk: $('tab-talk'), transfer: $('tab-transfer'), wake: $('tab-wake') };
 
   function updateTabs(screenId) {
-    var active = (screenId === 'talk') ? 'talk' : 'transfer';
+    var active = (screenId === 'talk') ? 'talk' : (screenId === 'sites') ? 'sites' : 'transfer';
     tabs.talk.classList.toggle('active', active === 'talk');
     tabs.transfer.classList.toggle('active', active === 'transfer');
+    if (sitesTabEl) sitesTabEl.classList.toggle('active', active === 'sites');
   }
 
   // Wrap app.js's showScreen so the tab bar stays in sync with every screen
@@ -793,6 +794,107 @@
 
     setTimeout(startWake, 4500);
   }());
+
+  /* ── Sites tab: GitHub Pages deployments ──────────────────────────────── */
+  var JARVIS_URL = 'http://127.0.0.1:5001';
+  var sitesTabEl = $('tab-sites');
+  var sitesRendered = false;
+  var sitesPollTimer = null;
+
+  function fetchSites() {
+    var listEl = $('sites-list');
+    var emptyEl = $('sites-empty');
+    var statusEl = $('sites-status');
+    if (!listEl) return;
+
+    fetch(JARVIS_URL + '/api/github/pages-repos')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var repos = (d.repos || []).filter(function (r) { return r.has_pages; });
+        if (!repos.length) {
+          listEl.innerHTML = '';
+          emptyEl.classList.remove('hidden');
+          statusEl.textContent = '0 sites';
+          return;
+        }
+        emptyEl.classList.add('hidden');
+        statusEl.textContent = repos.length + ' site' + (repos.length === 1 ? '' : 's');
+        listEl.innerHTML = '';
+        repos.forEach(function (repo) {
+          var card = document.createElement('div');
+          card.className = 'site-card';
+          var timeAgo = repo.pushed_at ? formatTimeAgo(repo.pushed_at) : '';
+          card.innerHTML =
+            '<div class="site-name">' +
+              '<span class="site-live-dot pending" data-url="' + escHtml(repo.pages_url || '') + '"></span>' +
+              escHtml(repo.name) +
+            '</div>' +
+            (repo.description ? '<div class="site-desc">' + escHtml(repo.description) + '</div>' : '') +
+            '<div class="site-meta">' +
+              '<span>Updated ' + timeAgo + '</span>' +
+            '</div>' +
+            '<div class="site-actions">' +
+              '<button class="site-btn open" data-url="' + escHtml(repo.pages_url || '') + '">Open</button>' +
+              '<button class="site-btn open" data-url="' + escHtml(repo.html_url || '') + '">Source</button>' +
+            '</div>';
+          listEl.appendChild(card);
+          // Poll live status
+          if (repo.pages_url) {
+            pollSiteLive(card.querySelector('.site-live-dot'), repo.pages_url);
+          }
+        });
+        // Wire up open buttons
+        listEl.querySelectorAll('.site-btn.open').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var url = btn.getAttribute('data-url');
+            if (url) window.open(url, '_blank');
+          });
+        });
+      })
+      .catch(function () {
+        statusEl.textContent = 'Offline';
+      });
+  }
+
+  function pollSiteLive(dotEl, url) {
+    if (!dotEl) return;
+    fetch(JARVIS_URL + '/api/deploy-check?url=' + encodeURIComponent(url))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.live) {
+          dotEl.className = 'site-live-dot live';
+        } else {
+          setTimeout(function () { pollSiteLive(dotEl, url); }, 4000);
+        }
+      }).catch(function () {
+        dotEl.className = 'site-live-dot offline';
+      });
+  }
+
+  function formatTimeAgo(isoStr) {
+    var diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  if (sitesTabEl) {
+    sitesTabEl.addEventListener('click', function () {
+      showScreen('sites');
+      updateTabs('sites');
+      if (!sitesRendered) {
+        sitesRendered = true;
+        fetchSites();
+      }
+      // Refresh every time user opens the tab
+      else { fetchSites(); }
+    });
+  }
 
   /* ── boot: always land on TALK (no login needed to chat) ───────────── */
   function boot() {
