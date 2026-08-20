@@ -1,11 +1,11 @@
 'use strict';
-var CACHE = 'jarvis-command-v6';
+var CACHE = 'jarvis-command-v7';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js',
-  './combined-app.js',
+  './app.js?v=7',
+  './combined-app.js?v=7',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
