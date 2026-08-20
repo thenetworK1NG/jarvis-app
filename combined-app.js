@@ -784,7 +784,18 @@
   var sitesRendered = false;
 
   function getGhUsername() {
-    return (window.__GH_USERNAME || '').trim();
+    // Try injected value first, then Firebase
+    var injected = (window.__GH_USERNAME || '').trim();
+    if (injected) return injected;
+    return cachedGhUsername || '';
+  }
+  var cachedGhUsername = '';
+  // Read GitHub username from Firebase on boot
+  if (DB) {
+    DB.ref('jarvischat/meta/gh_username').once('value').then(function (snap) {
+      var val = snap.val();
+      if (val && typeof val === 'string') cachedGhUsername = val.trim();
+    }).catch(function () {});
   }
 
   function fetchSites() {
