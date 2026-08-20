@@ -483,24 +483,6 @@
   setInterval(checkStatus, 5000);
   checkStatus();
 
-  // Watch for processing messages to show thinking state
-  if (INBOX) {
-    INBOX.on('child_added', function (snap) {
-      var msg = snap.val() || {};
-      if (msg.status === 'processing') {
-        thinkingState = true;
-        paintChatStatus(true, false);
-      }
-    });
-    INBOX.on('child_changed', function (snap) {
-      var msg = snap.val() || {};
-      if (msg.status === 'done' || msg.status === 'new') {
-        thinkingState = false;
-        paintChatStatus(true, false);
-      }
-    });
-  }
-
   /* ── install as PWA ────────────────────────────────── */
   var installBtn = $('install');
   var deferredPrompt = null;
