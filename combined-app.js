@@ -297,6 +297,7 @@
 
   function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
 
+  var thinkingTimer = null;
   function showTyping() {
     if (typingEl) return;
     thinkingState = true;
@@ -310,8 +311,11 @@
     }
     messagesEl.appendChild(typingEl);
     scrollBottom();
+    if (thinkingTimer) clearTimeout(thinkingTimer);
+    thinkingTimer = setTimeout(hideTyping, 60000);
   }
   function hideTyping() {
+    if (thinkingTimer) { clearTimeout(thinkingTimer); thinkingTimer = null; }
     if (typingEl) { typingEl.remove(); typingEl = null; }
     thinkingState = false;
     paintChatStatus(true, false);
@@ -369,19 +373,22 @@
       var text = (msg.text || '').trim();
       var replyData = msg.reply_data || {};
       var reply = (replyData.reply || msg.reply || '').trim();
+      var replySender = replyData.sender || sender;
       if (sender === 'user' && text) {
         rendered[key] = true;
         messagesEl.appendChild(bubble('me', text, msg.ts));
         scrollBottom();
       }
-      if (sender === 'assistant' && reply && !rendered[key + ':r']) {
+      if (reply && replySender === 'assistant' && !rendered[key + ':r']) {
         rendered[key + ':r'] = true;
         if (!rendered[key]) {
           messagesEl.appendChild(bubble('me', text || '(phone message)', msg.ts));
+          rendered[key] = true;
         }
         messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || msg.ts));
         if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
         scrollBottom();
+        hideTyping();
         if (window._jarvisTTS) window._jarvisTTS(reply);
       }
       if (!sender && text && !reply) {
@@ -396,8 +403,13 @@
       var replyData = msg.reply_data || {};
       var reply = (replyData.reply || msg.reply || '').trim();
       var sender = msg.sender || '';
-      if (sender === 'assistant' && reply && !rendered[key + ':r']) {
+      var replySender = replyData.sender || sender;
+      if (reply && replySender === 'assistant' && !rendered[key + ':r']) {
         rendered[key + ':r'] = true;
+        if (!rendered[key]) {
+          messagesEl.appendChild(bubble('me', text || msg.text || '(phone message)', msg.ts));
+          rendered[key] = true;
+        }
         messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || Date.now()));
         if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
         scrollBottom();
