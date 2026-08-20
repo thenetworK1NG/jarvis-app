@@ -495,12 +495,17 @@
     if (buildEl) buildEl.classList.toggle('hidden', !build);
   }
   function checkStatus() {
-    if (!STATUS) { paintChatStatus(false, false); return; }
+    if (!STATUS) { paintChatStatus(thinkingState ? true : false, false); return; }
     STATUS.once('value').then(function (snap) {
       var v = snap.val();
-      if (!v || !v.online) { paintChatStatus(false, false); return; }
-      paintChatStatus((Date.now() - (v.ts || 0)) < 25000, !!v.build);
-    }).catch(function () { paintChatStatus(false, false); });
+      if (!v || !v.online) {
+        paintChatStatus(thinkingState ? true : false, false);
+        return;
+      }
+      paintChatStatus(thinkingState ? true : ((Date.now() - (v.ts || 0)) < 25000), !!v.build);
+    }).catch(function () {
+      if (!thinkingState) paintChatStatus(false, false);
+    });
   }
   if (STATUS) { STATUS.on('value', checkStatus); }
   setInterval(checkStatus, 5000);
