@@ -119,9 +119,14 @@
     if (window.JarvisChat) window.JarvisChat.stick();
     if (thinkingTimer) clearTimeout(thinkingTimer);
     thinkingTimer = setTimeout(hideTyping, 60000);
+    if (!wdTimer) {
+      setTimeout(wdPoll, 4000);
+      wdTimer = setInterval(wdPoll, 10000);
+    }
   }
   function hideTyping() {
     if (thinkingTimer) { clearTimeout(thinkingTimer); thinkingTimer = null; }
+    if (wdTimer) { clearInterval(wdTimer); wdTimer = null; }
     if (typingEl) { typingEl.remove(); typingEl = null; }
     var stopBtn = $('stop-btn');
     if (stopBtn) stopBtn.classList.add('hidden');
@@ -146,10 +151,26 @@
       repliedAt: rd.repliedAt || m.repliedAt,
       ts: m.ts
     });
-    if (isAssistantReply) {
+    /* Only end "typing" / speak when the reply belongs to the chat we're
+       looking at — background chats must not touch the indicator. */
+    if (isAssistantReply && (!m.chatId || m.chatId === window.JarvisChat.activeId())) {
       hideTyping();
       if (window._jarvisTTS) window._jarvisTTS(reply);
     }
+  }
+
+  /* Typing watchdog: Firebase events can get lost (socket drop, PC network
+     hiccup). While the indicator is up, re-poll the active chat's last few
+     messages so a reply that already landed on the server is picked up. */
+  var wdTimer = null;
+  function wdPoll() {
+    if (!typingEl || !SYNC || !window.JarvisChat) return;
+    try {
+      SYNC.orderByChild('chatId').equalTo(window.JarvisChat.activeId())
+        .limitToLast(6).once('value').then(function (snap) {
+          snap.forEach(function (ch) { try { ingestSnap(ch); } catch (_) {} });
+        }).catch(function () {});
+    } catch (_) {}
   }
 
   if (SYNC) {
