@@ -2,7 +2,7 @@
   "id": "./",
   "name": "J.A.R.V.I.S. Command",
   "short_name": "JARVIS",
-  "description": "Networking Technologies command deck. Talk to J.A.R.V.I.S., send files straight into his quickshare through the wetransfer system, and wake him remotely from anywhere.",
+  "description": "Networking Technologies command deck. Talk to J.A.R.V.I.S. and send files straight into his quickshare through the wetransfer system.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
