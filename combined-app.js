@@ -2,8 +2,6 @@
  * - Talk: uses a shared Firebase sync path (jarvischat/sync) so the phone
  *   and PC see the same messages in real time.
  * - Transfer: reuses the wetransfer phone app engine (app.js) untouched.
- * - Wake: if J.A.R.V.I.S. is offline, writes a wake request to Firebase that
- *   the PC-side wake_listener.py watches and uses to boot jarvis.py.
  */
 (function () {
   'use strict';
@@ -12,37 +10,19 @@
 
   var firebaseOk = (typeof firebase !== 'undefined' && firebase.initializeApp);
   var DB = null;
-  var SYNC = null, STATUS = null, WAKE = null, WAKE_LISTENER = null;
+  var SYNC = null, STATUS = null;
   if (firebaseOk) {
     try {
       DB = firebase.database();
       SYNC = DB.ref('jarvischat/sync');
       STATUS = DB.ref('jarvischat/status');
-      WAKE = DB.ref('jarvischat/wake');
-      WAKE_LISTENER = DB.ref('jarvischat/wakeListener');
     } catch (e) { DB = null; }
   }
 
   var online = false;
-  var pendingWake = false;
-  var wakeListenerArmed = false;
-  var lastWakeSent = 0;
-  var wakeTimeoutTimer = null;
-  var booting = false;
-
-  function myLabel() {
-    try {
-      if (window.getSessionUser) {
-        var u = getSessionUser();
-        if (u) return u;
-      }
-      if (window.getDeviceName) return getDeviceName();
-    } catch (e) {}
-    return 'JARVIS-Command';
-  }
 
   /* ── tab bar ──────────────────────────────────────── */
-  var tabs = { talk: $('tab-talk'), transfer: $('tab-transfer'), wake: $('tab-wake') };
+  var tabs = { talk: $('tab-talk'), transfer: $('tab-transfer') };
 
   function updateTabs(screenId) {
     var active = (screenId === 'talk') ? 'talk' : (screenId === 'sites') ? 'sites' : 'transfer';
@@ -68,14 +48,12 @@
     var st = window.state;
     if (st === 'connecting' || st === 'connected') {
       showScreen(st);
-    } else if (window.getSessionUser && getSessionUser()) {
-      showScreen('home');
     } else {
-      showScreen('login');
+      showScreen('home');
     }
   });
 
-  /* ── J.A.R.V.I.S. online / wake status ─────────────── */
+  /* ── J.A.R.V.I.S. online status ────────────────────── */
   function isOnlineVal(v) {
     return !!(v && v.online && (Date.now() - (v.ts || 0)) < 25000);
   }
@@ -88,9 +66,6 @@
       if (linked) {
         pill.className = 'hud-pill linked';
         pill.textContent = 'LINKED';
-      } else if (booting || pendingWake) {
-        pill.className = 'hud-pill waking';
-        pill.textContent = 'WAKING';
       } else if (online) {
         pill.className = 'hud-pill up';
         pill.textContent = 'ONLINE';
@@ -99,118 +74,12 @@
         pill.textContent = 'OFFLINE';
       }
     }
-    paintWakeStrip();
-  }
-
-  function paintWakeStrip() {
-    var strip = $('wake-strip');
-    var sub = $('wake-sub');
-    var btn = $('btn-wake');
-
-    // Drive the WAKE tab visual state
-    var wakeTab = $('tab-wake');
-    if (wakeTab) {
-      var wState = (online && !pendingWake) ? 'online'
-        : (pendingWake || booting) ? 'waking'
-        : wakeListenerArmed ? 'armed'
-        : 'offline';
-      wakeTab.dataset.wakeState = wState;
-      var lbl = wakeTab.querySelector('.wake-label');
-      if (lbl) lbl.textContent = wState === 'waking' ? 'WAKING' : wState === 'online' ? 'ONLINE' : 'WAKE';
-    }
-
-    if (!strip || !btn) return;
-
-    if (online && !pendingWake) {
-      strip.classList.add('hidden');
-      return;
-    }
-    strip.classList.remove('hidden');
-
-    if (pendingWake) {
-      btn.disabled = true;
-      btn.classList.remove('armed');
-      btn.classList.add('done');
-      btn.textContent = 'WAKING';
-      if (sub) sub.textContent = 'Wake signal sent — booting J.A.R.V.I.S. on his PC…';
-    } else if (wakeListenerArmed) {
-      btn.disabled = false;
-      btn.classList.add('armed');
-      btn.classList.remove('done');
-      btn.textContent = 'WAKE';
-      if (sub) sub.textContent = 'Remote wake armed · tap WAKE to boot him';
-    } else {
-      btn.disabled = false;
-      btn.classList.remove('armed', 'done');
-      btn.textContent = 'WAKE';
-      if (sub) sub.textContent = 'Wake listener not running on his PC — open the wake listener to boot him remotely';
-    }
-  }
-
-  function sendWakeRequest() {
-    if (!WAKE) { toast('No network to reach the wake channel.'); return; }
-    if (online || pendingWake) return;
-    pendingWake = true;
-    booting = true;
-    lastWakeSent = Date.now();
-    WAKE.set({ by: myLabel(), ts: Date.now(), status: 'request' });
-    paintHud();
-    toast('Wake signal sent, sir.');
-    if (wakeTimeoutTimer) clearTimeout(wakeTimeoutTimer);
-    wakeTimeoutTimer = setTimeout(function () {
-      if (pendingWake && !online) {
-        pendingWake = false;
-        booting = false;
-        paintHud();
-        toast('No response — is the wake listener running on his PC?');
-      }
-    }, 60000);
-  }
-
-  var wakeBtn = $('btn-wake');
-  if (wakeBtn) wakeBtn.addEventListener('click', sendWakeRequest);
-
-  // WAKE center tab click
-  var tabWakeEl = $('tab-wake');
-  if (tabWakeEl) {
-    tabWakeEl.addEventListener('click', function () {
-      if (online && !pendingWake) { toast('J.A.R.V.I.S. is already online.'); return; }
-      if (pendingWake) { toast('Wake signal already sent…'); return; }
-      sendWakeRequest();
-    });
   }
 
   if (STATUS) {
     STATUS.on('value', function (snap) {
       online = isOnlineVal(snap.val());
-      if (online) {
-        pendingWake = false;
-        booting = false;
-        if (wakeTimeoutTimer) { clearTimeout(wakeTimeoutTimer); wakeTimeoutTimer = null; }
-      }
       paintHud();
-    });
-  }
-
-  if (WAKE) {
-    WAKE.on('value', function (snap) {
-      var v = snap.val();
-      if (!v) return;
-      if (v.status === 'ack') {
-        pendingWake = false;
-        booting = false;
-        if (wakeTimeoutTimer) { clearTimeout(wakeTimeoutTimer); wakeTimeoutTimer = null; }
-        paintHud();
-        if (!online) toast('J.A.R.V.I.S. is booting on his PC.');
-      }
-    });
-  }
-
-  if (WAKE_LISTENER) {
-    WAKE_LISTENER.on('value', function (snap) {
-      var v = snap.val();
-      wakeListenerArmed = !!(v && v.online && (Date.now() - (v.ts || 0)) < 60000);
-      paintWakeStrip();
     });
   }
 
