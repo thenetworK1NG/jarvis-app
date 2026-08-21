@@ -1206,7 +1206,32 @@ function startApp() {
 
 try {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(function() {});
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function() {});
+
+        /* Auto-reload once when a new service worker takes over, so updates
+           actually reach the phone without a manual hard-refresh. Deferred
+           if the user is mid-typing; fires as soon as the box empties. */
+        var swReloading = false;
+        var swReloadPending = false;
+        function swMaybeReload() {
+            if (swReloading) return;
+            var inp = document.getElementById('input');
+            if (inp && inp.value.trim()) { swReloadPending = true; return; }
+            swReloading = true;
+            location.reload();
+        }
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+            // ignore the very first controller (fresh install)
+            if (!navigator.serviceWorker.controller) return;
+            setTimeout(swMaybeReload, 300);
+        });
+        var inpEl0 = document.getElementById('input');
+        if (inpEl0) inpEl0.addEventListener('input', function () {
+            if (swReloadPending && !inpEl0.value.trim()) { swReloadPending = false; swMaybeReload(); }
+        });
+        setInterval(function () {
+            navigator.serviceWorker.ready.then(function (r) { return r.update(); }).catch(function () {});
+        }, 5 * 60 * 1000);
     }
 } catch (e) {}
 
