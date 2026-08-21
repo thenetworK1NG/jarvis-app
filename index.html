@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="JARVIS">
 <meta name="format-detection" content="telephone=no">
-<meta name="description" content="J.A.R.V.I.S. Command — chat and transfer files.">
+<meta name="description" content="J.A.R.V.I.S. Command â€” chat and transfer files.">
 <title>J.A.R.V.I.S. Command</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9.5v13L16 30 4 22.5v-13L16 2Z' fill='%237c7cf6'/%3E%3Cpath d='M16 8 23 12.25v7.5L16 24l-7-4.25v-7.5L16 8Z' fill='%23111111' opacity='.55'/%3E%3C/svg%3E">
@@ -39,7 +39,7 @@ body{
 }
 input,textarea{-webkit-user-select:text;user-select:text}
 
-/* ── intro ─────────────────────────────────── */
+/* â”€â”€ intro â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #intro{
   position:fixed;inset:0;z-index:100;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -71,13 +71,13 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @keyframes introLoad{to{width:100%}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
-/* ── shell ────────────────────────────────── */
+/* â”€â”€ shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #app{
   position:relative;z-index:1;max-width:560px;margin:0 auto;width:100%;
   height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);
 }
 
-/* ── topbar ───────────────────────────────── */
+/* â”€â”€ topbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .topbar{
   flex-shrink:0;display:flex;align-items:center;gap:10px;position:relative;z-index:2;
   padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));
@@ -116,14 +116,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #install{display:none;color:var(--accent)}
 #install.show{display:grid}
 
-/* ── screens ─────────────────────────────── */
+/* â”€â”€ screens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .screen{display:none;flex:1;flex-direction:column;overflow:hidden}
 .screen.active{display:flex;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .hidden{display:none!important}
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;}
 
-/* ── buttons ─────────────────────────────── */
+/* â”€â”€ buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:10px;
   padding:13px 20px;border:none;border-radius:10px;font-size:.88rem;font-weight:600;
@@ -140,7 +140,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .btn-text:hover{color:var(--text)}
 .btn:disabled{opacity:.35;transform:none!important;box-shadow:none!important;cursor:not-allowed}
 
-/* ── auth ────────────────────────────────── */
+/* â”€â”€ auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .status{color:var(--muted);text-align:center;font-size:.82rem;line-height:1.4}
 .brand{text-align:center;padding:12px 0 8px}
 .ring{
@@ -156,7 +156,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .brand h1{font-size:1.3rem;font-weight:600;letter-spacing:.1em;color:var(--text)}
 .brand p{color:var(--muted-2);font-size:.76rem;margin-top:6px;letter-spacing:.04em}
 
-/* ── TRANSFER hub ────────────────────────── */
+/* â”€â”€ TRANSFER hub â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #screen-talk{padding:0}
 #screen-home{justify-content:flex-start;padding:12px 16px;overflow-y:auto}
 #screen-home::-webkit-scrollbar{width:2px}
@@ -193,7 +193,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .reconnect-btn{background:var(--accent-soft);color:var(--accent);border:1px solid rgba(124,124,246,.3);border-radius:6px;padding:7px 12px;font-size:.72rem;font-weight:600;cursor:pointer;flex-shrink:0;touch-action:manipulation}
 .reconnect-btn:active{transform:scale(.95)}
 
-/* ── connecting ─────────────────────────── */
+/* â”€â”€ connecting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #screen-connecting{justify-content:center;align-items:center;gap:14px;padding:24px}
 #screen-connecting h2{font-size:1rem;letter-spacing:.2em;color:var(--accent);text-transform:uppercase}
 .link-spin{
@@ -202,7 +202,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   box-shadow:0 0 22px var(--accent-soft);
 }
 
-/* ── connected (transfer) ───────────────── */
+/* â”€â”€ connected (transfer) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #screen-connected{justify-content:flex-start;padding:12px 16px;overflow-y:auto}
 #screen-connected::-webkit-scrollbar{width:2px}
 #screen-connected::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
@@ -236,7 +236,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .success-notification .time{font-size:2rem;font-weight:700;color:var(--accent);line-height:1.2}
 .success-notification .sub{font-size:.74rem;color:var(--muted-2)}
 
-/* ── chat (TALK) ─────────────────────────── */
+/* â”€â”€ chat (TALK) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .chat-top{display:flex;align-items:center;gap:10px;padding:10px 14px;flex-shrink:0;background:var(--panel);border-bottom:1px solid var(--border);}
 .chat-top h2{font-size:.9rem;font-weight:600;letter-spacing:.06em;flex:1;color:var(--text)}
 #conn-status{font-size:.65rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:5px;flex-shrink:0;color:var(--muted-2);}
@@ -287,7 +287,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #voice-btn.speaking{color:var(--speaking);animation:speakPulse .9s ease-in-out infinite;}
 @keyframes speakPulse{0%,100%{box-shadow:0 0 0 0 rgba(96,165,250,.5)}50%{box-shadow:0 0 0 7px rgba(96,165,250,0)}}
 
-/* ── clear chat confirm ──────────────────── */
+/* â”€â”€ clear chat confirm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #clearBackdrop{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);display:none;align-items:flex-end;justify-content:center;padding:0 16px 28px;padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));}
 #clearBackdrop.show{display:flex}
 #clearConfirm{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--border-2);border-radius:16px;padding:20px;animation:popUp .22s ease;}
@@ -300,12 +300,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #clearCancel{background:var(--panel-2);color:var(--muted)}
 #clearGo{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3);color:#fca5a5}
 
-/* ── toast ───────────────────────────────── */
+/* â”€â”€ toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(16px);opacity:0;pointer-events:none;z-index:60;background:rgba(17,17,22,.96);border:1px solid var(--border-2);color:var(--text);padding:9px 17px;border-radius:999px;font-size:.8rem;white-space:nowrap;display:flex;align-items:center;gap:7px;box-shadow:0 0 18px var(--accent-soft),0 8px 36px rgba(0,0,0,.6);transition:opacity .22s,transform .22s;}
 #toast::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* ── bottom tab bar ──────────────────────── */
+/* â”€â”€ bottom tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #tabbar{flex-shrink:0;display:flex;align-items:stretch;z-index:30;background:var(--panel);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom,0px);position:relative;}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 8px;background:none;border:none;cursor:pointer;font-size:.58rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--muted-2);transition:color .2s;position:relative;}
 .tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -315,11 +315,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
 
-/* ── chat menu button + title ───────────── */
+/* â”€â”€ chat menu button + title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #chatTitleDisplay{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #chatMenuBtn.open{background:var(--accent-soft);border-color:rgba(124,124,246,.35);color:var(--accent)}
 
-/* ── chat history sheet ──────────────── */
+/* â”€â”€ chat history sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #chatSheetBackdrop{
   position:fixed;inset:0;z-index:40;
   background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
@@ -357,7 +357,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #chatHistoryList::-webkit-scrollbar{width:2px}
 #chatHistoryList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
 
-/* ── enhanced tab bar ──────────────────── */
+/* â”€â”€ enhanced tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .tab{
   background:none;
   transition:color .2s,background .2s;
@@ -368,7 +368,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   background:rgba(124,124,246,.06);
 }
 
-/* ── sites screen ────────────────────────────── */
+/* â”€â”€ sites screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #screen-sites{padding:0;overflow:hidden;}
 .sites-top{
   display:flex;align-items:center;justify-content:space-between;
@@ -440,7 +440,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @keyframes pulseGold{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes pulseRed{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* ── chat shell: welcome / day chips / markdown / scroll FAB ── */
+/* â”€â”€ chat shell: welcome / day chips / markdown / scroll FAB â”€â”€ */
 #msgwrap{flex:1;position:relative;min-height:0;display:flex;flex-direction:column}
 #messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 #welcome{margin:auto;text-align:center;color:var(--muted-2);padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
@@ -464,7 +464,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #scrollBtn .badge{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;border-radius:999px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:.58rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg)}
 #scrollBtn .badge.hidden{display:none}
 
-/* ── history sheet upgrades ─────────────── */
+/* â”€â”€ history sheet upgrades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .ch-group{font-size:.56rem;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--muted-2);padding:12px 6px 2px}
 .ch-item{display:flex;align-items:center;gap:10px;padding:10px 8px 10px 12px;border-radius:10px;background:transparent;border:1px solid transparent;cursor:pointer;transition:background .15s}
 .ch-item:active{background:rgba(124,124,246,.1)}
@@ -491,7 +491,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 </head>
 <body>
 
-<!-- ═══ intro splash ═══ -->
+<!-- â•â•â• intro splash â•â•â• -->
 <div id="intro">
   <div class="intro-net" aria-hidden="true">
     <svg viewBox="0 0 320 320">
@@ -531,7 +531,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     <button id="install"></button>
   </div>
 
-  <!-- ═══ TALK (chat) ═══ -->
+  <!-- â•â•â• TALK (chat) â•â•â• -->
   <div id="screen-talk" class="screen active">
     <div class="chat-top">
       <button id="chatMenuBtn" class="icon-btn" title="Chats" aria-label="Chats">
@@ -568,7 +568,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     </div>
   </div>
 
-  <!-- ═══ TRANSFER hub ═══ -->
+  <!-- â•â•â• TRANSFER hub â•â•â• -->
   <div id="screen-home" class="screen">
     <div class="home-inner">
       <div class="brand-sm">
@@ -594,14 +594,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
     </div>
   </div>
 
-  <!-- ═══ CONNECTING ═══ -->
+  <!-- â•â•â• CONNECTING â•â•â• -->
   <div id="screen-connecting" class="screen">
     <h2>LINKING\u2026</h2>
     <p class="status" id="connect-status">Setting up secure connection</p>
     <div class="link-spin"></div>
   </div>
 
-  <!-- ═══ CONNECTED (transfer) ═══ -->
+  <!-- â•â•â• CONNECTED (transfer) â•â•â• -->
   <div id="screen-connected" class="screen">
     <div class="home-inner">
       <div class="conn-status"><span class="conn-dot"></span><span class="txt">Linked to <b id="peer-label"></b></span></div>
@@ -650,7 +650,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     </div>
   </div>
 
-  <!-- ═══ SITES ═══ -->
+  <!-- â•â•â• SITES â•â•â• -->
   <div id="screen-sites" class="screen">
     <div class="sites-top">
       <h2>GITHUB PAGES</h2>
@@ -668,7 +668,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   </div>
 
 </div>
-<!-- ╒═══ chat history sheet ═══ -->
+<!-- â•’â•â•â• chat history sheet â•â•â• -->
 <div id="chatSheetBackdrop">
   <div id="chatSheet">
     <div class="sheet-grip"></div>
@@ -682,7 +682,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     <div id="chatHistoryList"></div>
   </div>
 </div>
-<!-- ═══ clear chat confirm ═══ -->
+<!-- â•â•â• clear chat confirm â•â•â• -->
 <div id="clearBackdrop">
   <div id="clearConfirm">
     <div class="grip"></div>
@@ -697,7 +697,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 
 <div id="toast"></div>
 
-  <!-- ═══ bottom tab bar ═══ -->
+  <!-- â•â•â• bottom tab bar â•â•â• -->
 <nav id="tabbar">
   <button id="tab-talk" class="tab active" data-tab="talk">
     <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -717,8 +717,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
 <script>window.__FB_CONFIG={"apiKey": "AIzaSyAwwm1NYa-jaKNqmJCGzKD6Blyq5VUVWuc", "databaseURL": "https://share-it-414ed-default-rtdb.firebaseio.com", "projectId": "share-it-414ed"};</script>
 <script>window.__GH_USERNAME="thenetworK1NG";</script>
-<script src="app.js?v=11"></script>
-<script src="combined-app.js?v=11"></script>
+<script src="app.js?v=12"></script>
+<script src="combined-app.js?v=12"></script>
 <script>
 (function(){
   'use strict';
@@ -734,7 +734,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   var messagesEl=$('messages'),listEl=$('chatHistoryList');
   var titleEl=$('chatTitleDisplay'),scrollBtn=$('scrollBtn'),scrollBadge=$('scrollBadge');
 
-  /* ── firebase mirrors ─────────────────── */
+  /* â”€â”€ firebase mirrors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   var FB_CHATS=null,FB_DELETED=null;
   try{
     if(typeof firebase!=='undefined'&&firebase.initializeApp){
@@ -743,7 +743,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     }
   }catch(_){}
 
-  /* ── store ────────────────────────────── */
+  /* â”€â”€ store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function load(){
     try{chats=JSON.parse(localStorage.getItem(STORE))||[];}catch(_){chats=[];}
     if(!Array.isArray(chats))chats=[];
@@ -770,7 +770,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   }
   function setTitle(t){if(titleEl)titleEl.textContent=t||'J.A.R.V.I.S.';}
 
-  /* ── text helpers ─────────────────────── */
+  /* â”€â”€ text helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function linkify(escaped){
     return escaped.replace(/https?:\/\/[^\s"']+/g,function(m){
@@ -833,11 +833,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
     return 'Older';
   }
 
-  /* ── toast hook (combined-app assigns window.__toast) ── */
+  /* â”€â”€ toast hook (combined-app assigns window.__toast) â”€â”€ */
   function toast(msg){if(window.__toast)window.__toast(msg);}
   function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(_){}}
 
-  /* ── scrolling ────────────────────────── */
+  /* â”€â”€ scrolling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function nearBottom(){return messagesEl.scrollHeight-messagesEl.scrollTop-messagesEl.clientHeight<90;}
   messagesEl.addEventListener('scroll',function(){
     pinned=nearBottom();
@@ -866,18 +866,18 @@ input,textarea{-webkit-user-select:text;user-select:text}
     setTimeout(function(){pinned=nearBottom();paintFab();},420);
   });
 
-  /* ── welcome ──────────────────────────── */
+  /* â”€â”€ welcome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function showWelcome(){
     if(messagesEl.querySelector('#welcome'))return;
     var w=document.createElement('div');
     w.id='welcome';
     w.innerHTML='<div class="hex"></div><h3>Good day, sir.</h3>'+
-      '<p>Ask anything — type below or tap the mic and just say &ldquo;JARVIS&rdquo;.</p>';
+      '<p>Ask anything â€” type below or tap the mic and just say &ldquo;JARVIS&rdquo;.</p>';
     messagesEl.appendChild(w);
   }
   function hideWelcome(){var w=$('welcome');if(w)w.remove();}
 
-  /* ── bubbles ──────────────────────────── */
+  /* â”€â”€ bubbles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function dateChip(ts){var el=document.createElement('div');el.className='day-chip';el.textContent=dayLabel(ts);return el;}
   function attachCopy(el,role,text){
     var timer=null,y0=0;
@@ -946,7 +946,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     }
   }
 
-  /* ── full re-render of active chat ────── */
+  /* â”€â”€ full re-render of active chat â”€â”€â”€â”€â”€â”€ */
   function renderAll(){
     lastDay=null;
     messagesEl.textContent='';
@@ -961,7 +961,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     stick(true);
   }
 
-  /* ── message ingestion ────────────────── */
+  /* â”€â”€ message ingestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function addMsg(c,role,text,ts){
     var last=c.msgs[c.msgs.length-1];
     if(last&&last.role===role&&last.text===text&&Math.abs((last.ts||0)-ts)<3000)return false;
@@ -984,10 +984,17 @@ input,textarea{-webkit-user-select:text;user-select:text}
     }
     return false;
   }
+  function adopt(cid){
+    /* create a local shell for a chat that lives on another device */
+    var c={id:cid,title:'New chat',ts:Date.now(),msgs:[]};
+    chats.unshift(c);sortChats();
+    if(FB_CHATS)FB_CHATS.child(cid).set({title:c.title,ts:c.ts});
+    return c;
+  }
   function ingest(info){
     var key=info.key||('k'+Math.random()+Date.now());
     var cid=info.chatId||activeId;
-    var c=find(cid)||ensureActive();
+    var c=find(cid)||adopt(cid);
     var ts=info.ts||Date.now();
     if(info.text&&!seen[key]){
       seen[key]=1;
@@ -1015,7 +1022,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     touch(c);renderList();
   }
 
-  /* ── hydration from sync node (cross-device history) ── */
+  /* â”€â”€ hydration from sync node (cross-device history) â”€â”€ */
   function hydrate(c){
     if(!window.__SYNC||!c||c._hyd)return;
     c._hyd=true;
@@ -1039,7 +1046,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     }catch(_){}
   }
 
-  /* ── clear active chat ────────────────── */
+  /* â”€â”€ clear active chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function clearActive(){
     var c=cur();if(!c)return;
     c.msgs=[];delete c._hyd;save();
@@ -1053,7 +1060,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     renderAll();renderList();
   }
 
-  /* ── sheet / list ─────────────────────── */
+  /* â”€â”€ sheet / list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function openSheet(){renderList();var bd=$('chatSheetBackdrop');if(bd)bd.classList.add('show');var b=$('chatMenuBtn');if(b)b.classList.add('open');}
   function closeSheet(){var bd=$('chatSheetBackdrop');if(bd)bd.classList.remove('show');var b=$('chatMenuBtn');if(b)b.classList.remove('open');}
 
@@ -1093,7 +1100,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     });
   }
 
-  /* ── chat ops ─────────────────────────── */
+  /* â”€â”€ chat ops â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function setActive(id){
     activeId=id;save();
     try{window.activeChatId=id;}catch(_){}
@@ -1130,6 +1137,15 @@ input,textarea{-webkit-user-select:text;user-select:text}
     removeLocal(id);
     if(FB_DELETED)FB_DELETED.child(id).set({ts:Date.now()});
     if(FB_CHATS)FB_CHATS.child(id).remove();
+    /* scrub the chat's messages from the shared sync node so the PC's
+       delete-chat cleanup and ours agree */
+    if(window.__SYNC){
+      try{
+        window.__SYNC.orderByChild('chatId').equalTo(id).once('value').then(function(snap){
+          snap.forEach(function(ch){try{ch.ref.remove();}catch(_){}});
+        }).catch(function(){});
+      }catch(_){}
+    }
     toast('Chat deleted');
   }
   function mergeChat(snap){
@@ -1144,7 +1160,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     save();renderList();
   }
 
-  /* ── sheet drag-to-close ──────────────── */
+  /* â”€â”€ sheet drag-to-close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   (function sheetDrag(){
     var sheet=$('chatSheet'),bd=$('chatSheetBackdrop');
     if(!sheet||!bd)return;
@@ -1172,7 +1188,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     sheet.addEventListener('pointercancel',up);
   })();
 
-  /* ── keyboard (visualViewport) ────────── */
+  /* â”€â”€ keyboard (visualViewport) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   (function keyboard(){
     var app=$('app');
     if(!window.visualViewport||!app)return;
@@ -1186,7 +1202,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     window.addEventListener('orientationchange',function(){setTimeout(onVV,250);});
   })();
 
-  /* ── code-block copy (delegated) ──────── */
+  /* â”€â”€ code-block copy (delegated) â”€â”€â”€â”€â”€â”€â”€â”€ */
   messagesEl.addEventListener('click',function(e){
     var btn=e.target.closest?e.target.closest('.code-copy'):null;
     if(!btn)return;
@@ -1196,7 +1212,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){btn.textContent='COPIED';setTimeout(function(){btn.textContent='COPY';},1400);});
   });
 
-  /* ── public API for combined-app.js ───── */
+  /* â”€â”€ public API for combined-app.js â”€â”€â”€â”€â”€ */
   window.JarvisChat={
     activeId:function(){return activeId;},
     ingest:ingest,
@@ -1208,7 +1224,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
     closeSheet:closeSheet
   };
 
-  /* ── boot ─────────────────────────────── */
+  /* â”€â”€ boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   document.addEventListener('DOMContentLoaded',function(){
     load();
     if(!chats.length)ensureActive();
