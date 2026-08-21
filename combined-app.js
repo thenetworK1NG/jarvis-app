@@ -183,6 +183,78 @@
     inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
   }
 
+  /* ── guaranteed delivery ─────────────────────────────
+     A push made before Firebase's socket is up can sit in a local queue
+     with no ack and no error. So every message gets a stable dedupId and
+     is re-pushed every 5s until it is actually SEEN on the server. The
+     backend skips duplicates via that same dedupId. */
+  var pendingSends = [];
+  var deliveryTimer = null;
+
+  function pushPending(p) {
+    try {
+      var ref = SYNC.push();
+      p.key = ref.key;
+      ref.set(p.msg, function (err) {
+        if (!err) p.done = true;   // server acked (optimistic; tick verifies)
+      });
+    } catch (_) { p.key = null; }
+  }
+
+  function deliver(text) {
+    var msg = {
+      chatId: window.JarvisChat.activeId(),
+      sender: 'user',
+      text: text,
+      ts: Date.now(),
+      processed: false,
+      from: 'phone',
+      dedupId: 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+    };
+    var p = { key: null, msg: msg, tries: 0, born: Date.now(), done: false };
+    pendingSends.push(p);
+    pushPending(p);
+    if (!deliveryTimer) {
+      setTimeout(deliveryTick, 3000);
+      deliveryTimer = setInterval(deliveryTick, 5000);
+    }
+  }
+
+  function deliveryTick() {
+    if (!SYNC || !window.JarvisChat || !pendingSends.length) return;
+    var cid = window.JarvisChat.activeId();
+    try {
+      SYNC.orderByChild('chatId').equalTo(cid).limitToLast(12).once('value')
+        .then(function (snap) {
+          var keys = {};
+          snap.forEach(function (ch) { keys[ch.key] = 1; });
+          var now = Date.now();
+          for (var i = pendingSends.length - 1; i >= 0; i--) {
+            var p = pendingSends[i];
+            if (p.msg.chatId !== cid) continue;
+            if ((p.key && keys[p.key]) || p.done) {   // confirmed on server
+              pendingSends.splice(i, 1);
+              continue;
+            }
+            if (now - p.born > 7000 && p.tries < 6) {
+              p.tries++;
+              p.born = now;
+              if (p.tries === 2 && window.__toast) window.__toast('Connection slow \u2014 resending\u2026');
+              pushPending(p);
+            } else if (p.tries >= 6 && now - p.born > 15000) {
+              pendingSends.splice(i, 1);
+              if (window.__toast) window.__toast('Message failed to send.');
+              if (!pendingSends.length) hideTyping();
+            }
+          }
+          if (!pendingSends.length && deliveryTimer) {
+            clearInterval(deliveryTimer);
+            deliveryTimer = null;
+          }
+        }).catch(function () {});
+    } catch (_) {}
+  }
+
   var sendBusy = false;
   function sendChat() {
     if (sendBusy) return;
@@ -198,14 +270,7 @@
     autoGrow();
     showTyping();
     window.JarvisChat.localUser(text);
-    SYNC.push({
-      chatId: window.JarvisChat.activeId(),
-      sender: 'user',
-      text: text,
-      ts: Date.now(),
-      processed: false,
-      from: 'phone'
-    });
+    deliver(text);
     inputEl.focus();
   }
   $('send').addEventListener('click', sendChat);
