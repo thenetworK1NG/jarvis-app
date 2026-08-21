@@ -48,7 +48,7 @@ var _jarvisTargetId = null;
 var _incomingFiles = [];
 
 function isJarvisDevice(d) {
-    return !!(d && (d.isJarvis || (d.username && normalizeUsername(d.username) === 'jarvis')));
+    return !!(d && d.isJarvis);
 }
 
 function $(id) { return document.getElementById(id); }
@@ -80,23 +80,15 @@ function genUuid() {
         return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     }
 }
+// Ephemeral identity: fresh id + name per session, never saved to
+// localStorage or anywhere else. Nothing about this device persists.
 function getDeviceId() {
-    if (DEVICE_ID) return DEVICE_ID;
-    try { DEVICE_ID = localStorage.getItem('jl.deviceId'); } catch (e) {}
-    if (!DEVICE_ID) {
-        DEVICE_ID = genUuid();
-        try { localStorage.setItem('jl.deviceId', DEVICE_ID); } catch (e) {}
-    }
+    if (!DEVICE_ID) DEVICE_ID = genUuid();
     return DEVICE_ID;
 }
 function getDeviceName() {
-    if (DEVICE_NAME) return DEVICE_NAME;
-    var sessionUser = getSessionUser();
-    if (sessionUser) { DEVICE_NAME = sessionUser; return DEVICE_NAME; }
-    try { DEVICE_NAME = localStorage.getItem('jl.deviceName'); } catch (e) {}
     if (!DEVICE_NAME) {
         DEVICE_NAME = 'Phone-' + getDeviceId().slice(0, 4).toUpperCase();
-        try { localStorage.setItem('jl.deviceName', DEVICE_NAME); } catch (e) {}
     }
     return DEVICE_NAME;
 }
@@ -105,201 +97,11 @@ function apiBase() {
     return location.origin;
 }
 
-function normalizeUsername(u) {
-    return (u || '').trim().toLowerCase();
-}
-
-function getSessionUser() {
-    try { return localStorage.getItem('jl.username'); } catch (e) { return null; }
-}
-function setSessionUser(u) {
-    try { localStorage.setItem('jl.username', u); } catch (e) {}
-}
-function clearSessionUser() {
-    try { localStorage.removeItem('jl.username'); } catch (e) {}
-}
-function getWhitelistUsers() {
-    try {
-        var arr = JSON.parse(localStorage.getItem('jl.whitelistUsers') || '[]');
-        return Array.isArray(arr) ? arr : [];
-    } catch (e) { return []; }
-}
-function setWhitelistUsers(arr) {
-    try { localStorage.setItem('jl.whitelistUsers', JSON.stringify(arr)); } catch (e) {}
-}
-
-// The whitelist lives on the J.A.R.V.I.S. server AND in the Firebase database,
-// so signing in works no matter where this app is hosted (GitHub Pages, the
-// J.A.R.V.I.S. server, a file server...). The server is tried first; when it
-// is not reachable, the database is used instead.
-function fbUsersRead() {
-    return new Promise(function(resolve, reject) {
-        if (!DB) { reject(new Error('no-db')); return; }
-        DB.ref('whitelist/users').once('value').then(function(snap) {
-            var v = snap.val();
-            var map = {};
-            if (v && typeof v === 'object') {
-                Object.keys(v).forEach(function(k) {
-                    map[String(k).trim().toLowerCase()] = String(v[k]);
-                });
-            }
-            resolve(map);
-        }).catch(function(e) { reject(e); });
-    });
-}
-
-function fbUsersWrite(user, password) {
-    return new Promise(function(resolve, reject) {
-        if (!DB) { reject(new Error('no-db')); return; }
-        DB.ref('whitelist/users').child(user).set(password).then(resolve, reject);
-    });
-}
-
-// 'ok' | 'invalid:<error>' | 'unreachable'
-async function serverLoginAttempt(username, password) {
-    var res;
-    try {
-        res = await fetch(apiBase() + '/api/wetransfer/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
-        });
-    } catch (e) {
-        return 'unreachable';
-    }
-    if (res.status === 404 || res.status === 405 || res.status === 501) return 'unreachable';
-    var data = await res.json().catch(function() { return {}; });
-    if (res.ok && data.ok) return 'ok';
-    return 'invalid:' + (data.error || 'Login failed.');
-}
-
-async function whitelistLogin(username, password) {
-    var result = await serverLoginAttempt(username, password);
-    if (result === 'ok') return username;
-    if (result.indexOf('invalid:') === 0) throw new Error(result.slice(8));
-    if (DB) {
-        var map;
-        try {
-            map = await fbUsersRead();
-        } catch (e) {
-            throw new Error('Can\u2019t reach J.A.R.V.I.S. or the database to check the whitelist.');
-        }
-        var key = normalizeUsername(username);
-        if (!(key in map)) throw new Error('That username isn\u2019t on the whitelist yet \u2014 register it first.');
-        if (map[key] !== password) throw new Error('Wrong password.');
-        return username;
-    }
-    throw new Error('No login server here and no database to check the whitelist.');
-}
-
-async function whitelistAdd(username, password) {
-    var res = null;
-    try {
-        res = await fetch(apiBase() + '/api/wetransfer/whitelist/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
-        });
-    } catch (e) {
-        res = null;
-    }
-    if (res && res.status !== 404 && res.status !== 405 && res.status !== 501) {
-        var data = await res.json().catch(function() { return {}; });
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Could not add the account.');
-        return data.username || username;
-    }
-    if (!DB) throw new Error('No login server here and no database to register with.');
-    var key = normalizeUsername(username);
-    var map;
-    try {
-        map = await fbUsersRead();
-    } catch (e) {
-        throw new Error('Can\u2019t reach the database to register.');
-    }
-    if (key in map) throw new Error('That username is already on the whitelist.');
-    await fbUsersWrite(key, password);
-    return username;
-}
-
-function loadWhitelistUsers() {
-    return fetch(apiBase() + '/api/wetransfer/whitelist')
-        .then(function(res) { return res.json().catch(function() { return {}; }); })
-        .then(function(data) {
-            if (data && data.ok && Array.isArray(data.users)) {
-                setWhitelistUsers(data.users);
-                return data.users;
-            }
-            return null;
-        })
-        .then(function(users) {
-            if (users) return users;
-            return fbUsersRead().then(function(map) {
-                var list = Object.keys(map);
-                setWhitelistUsers(list);
-                return list;
-            });
-        })
-        .catch(function() { return getWhitelistUsers(); });
-}
-
-function doLogin() {
-    var u = $('login-username').value.trim();
-    var p = $('login-password').value;
-    var st = $('login-status');
-    if (!u || !p) { st.textContent = 'Enter your username and password.'; return; }
-    st.textContent = 'Signing in...';
-    whitelistLogin(u, p).then(function(name) {
-        DEVICE_NAME = name;
-        setSessionUser(name);
-        loadWhitelistUsers();
-        startApp();
-    }).catch(function(e) {
-        st.textContent = e.message;
-    });
-}
-
-function doAddDevice() {
-    var u = $('reg-username').value.trim();
-    var p = $('reg-password').value;
-    var p2 = $('reg-password2').value;
-    var st = $('reg-status');
-    if (!u || !p) { st.textContent = 'Enter a username and password.'; return; }
-    if (p !== p2) { st.textContent = 'Passwords do not match.'; return; }
-    if (p.length < 4) { st.textContent = 'Password must be at least 4 characters.'; return; }
-    st.textContent = 'Adding to whitelist...';
-    whitelistAdd(u, p).then(function(name) {
-        DEVICE_NAME = name;
-        setSessionUser(name);
-        loadWhitelistUsers();
-        startApp();
-    }).catch(function(e) {
-        st.textContent = e.message;
-    });
-}
-
-function doLogout() {
-    if (state === 'connected') disconnect();
-    _jarvisAutoDone = false;
-    _jarvisTargetId = null;
-    _linkCallbacks = [];
-    stopPresence();
-    clearSessionUser();
-    DEVICE_NAME = null;
-    var l1 = $('login-username'), l2 = $('login-password'), r1 = $('reg-username'), r2 = $('reg-password'), r3 = $('reg-password2');
-    if (l1) l1.value = '';
-    if (l2) l2.value = '';
-    if (r1) r1.value = '';
-    if (r2) r2.value = '';
-    if (r3) r3.value = '';
-    showScreen('login');
-}
-
 function deviceShort() {
     return getDeviceId().slice(0, 4).toUpperCase();
 }
 function presenceName() {
-    var u = getSessionUser();
-    return u ? (u + ' \u00b7 ' + deviceShort()) : deviceShort();
+    return getDeviceName();
 }
 
 var onlineDevices = {};
@@ -310,13 +112,12 @@ function publishPresence() {
     var ref = DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId());
     function doPublish() {
         try {
-            ref.onDisconnect().set({
-                username: getSessionUser(), name: presenceName(),
-                deviceId: getDeviceId(), online: false
-            });
+            // Ephemeral presence: the entry is wiped from the database the
+            // moment this device disconnects (tab closed, signal lost...).
+            ref.onDisconnect().remove();
         } catch (e) {}
         ref.set({
-            username: getSessionUser(), name: presenceName(),
+            name: presenceName(),
             deviceId: getDeviceId(), online: true,
             isJarvis: true,
             lastSeen: firebase.database.ServerValue.TIMESTAMP
@@ -352,7 +153,7 @@ function heartbeatPresence() {
 function stopPresence() {
     if (_presenceTimer) { clearInterval(_presenceTimer); _presenceTimer = 0; }
     if (!DB) return;
-    try { DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId()).set({ online: false }); } catch (e) {}
+    try { DB.ref('presence/' + PRESENCE_KEY + '/' + getDeviceId()).remove(); } catch (e) {}
 }
 
 function formatTimeAgo(ts) {
@@ -431,7 +232,7 @@ function renderDevices() {
         info.className = 'recent-info';
         var nm = document.createElement('div');
         nm.className = 'recent-name';
-        nm.textContent = (d.label || d.username || 'Device') + (d.isSelf ? '  \u00b7  you' : '');
+        nm.textContent = (d.label || 'Device') + (d.isSelf ? '  \u00b7  you' : '');
         if (isJarvisDevice(d) && !d.isSelf) {
             var badge = document.createElement('span');
             badge.className = 'jarvis-badge';
@@ -440,7 +241,7 @@ function renderDevices() {
         }
         var tm = document.createElement('div');
         tm.className = 'recent-time';
-        tm.textContent = (d.username || '') + ' \u00b7 ' + formatTimeAgo(d.lastSeen);
+        tm.textContent = formatTimeAgo(d.lastSeen);
         info.appendChild(nm);
         info.appendChild(tm);
         row.appendChild(info);
@@ -451,7 +252,7 @@ function renderDevices() {
             btn.textContent = 'Connect';
             btn.addEventListener('click', function() {
                 _jarvisTargetId = isJarvisDevice(d) ? d.deviceId : null;
-                connectToDevice(d.deviceId, isJarvisDevice(d) ? 'J.A.R.V.I.S.' : (d.label || d.username || 'device'));
+                connectToDevice(d.deviceId, isJarvisDevice(d) ? 'J.A.R.V.I.S.' : (d.label || 'device'));
             });
             row.appendChild(btn);
         } else {
@@ -510,10 +311,19 @@ function listenForPresence() {
             Object.keys(data).forEach(function(devId) {
                 var e = data[devId];
                 if (!e) return;
+                // Housekeeping: presence is ephemeral. Anything offline or
+                // silent for over 90s is a leftover — delete it from the DB
+                // so no device history ever accumulates here.
+                var fresh = e.online &&
+                    (typeof e.lastSeen !== 'number' ||
+                     (Date.now() - e.lastSeen) < 90000);
+                if (!fresh && devId !== getDeviceId()) {
+                    try { DB.ref('presence/' + PRESENCE_KEY + '/' + devId).remove(); } catch (err) {}
+                    return;
+                }
                 next[devId] = {
                     deviceId: devId,
-                    username: e.username || 'device',
-                    label: e.name || e.username || devId,
+                    label: e.name || devId,
                     lastSeen: (typeof e.lastSeen === 'number' ? e.lastSeen : Date.now()),
                     online: !!e.online,
                     isJarvis: !!e.isJarvis
@@ -1166,7 +976,7 @@ async function connectToDevice(deviceId, label) {
         var reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         currentReqRef = DB.ref('requests/' + deviceId + '/' + reqId);
         await currentReqRef.set({
-            from: { deviceId: getDeviceId(), name: getDeviceName(), username: getSessionUser() || 'phone' },
+            from: { deviceId: getDeviceId(), name: getDeviceName() },
             offer: pc.localDescription.sdp,
             createdAt: firebase.database.ServerValue.TIMESTAMP
         });
@@ -1235,8 +1045,7 @@ function listenForRequests() {
         }
         var peer = {
             deviceId: req.from.deviceId,
-            name: req.from.username,
-            username: req.from.username
+            name: req.from.name || req.from.username || 'device'
         };
         handleIncomingRequest(req, snap.key, peer);
     });
@@ -1335,13 +1144,6 @@ function init() {
     $('btn-disconnect').addEventListener('click', disconnect);
     var saveBtn = $('btn-save-received');
     if (saveBtn) saveBtn.addEventListener('click', saveReceived);
-    $('btn-login').addEventListener('click', doLogin);
-    $('login-password').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-    $('btn-show-register').addEventListener('click', function() { showScreen('register'); });
-    $('btn-register').addEventListener('click', doAddDevice);
-    $('reg-password2').addEventListener('keydown', function(e) { if (e.key === 'Enter') doAddDevice(); });
-    $('btn-show-login').addEventListener('click', function() { showScreen('login'); });
-    $('btn-logout').addEventListener('click', doLogout);
     var notifBtn = $('btn-notif-blocked');
     if (notifBtn) notifBtn.addEventListener('click', requestNotificationPermission);
 }
@@ -1364,7 +1166,7 @@ var _appStarted = false;
 function startApp() {
     showScreen('home');
     var dl = $('device-name-label');
-    if (dl) dl.textContent = 'Signed in as ' + getDeviceName();
+    if (dl) dl.textContent = 'Sharing as ' + getDeviceName();
     renderDevices();
     updateNotifHint();
     publishPresence();
@@ -1399,10 +1201,6 @@ function startApp() {
 }
 
 (function boot() {
-    if (!getSessionUser()) {
-        setSessionUser('phone');
-    }
-    if (!DEVICE_NAME) DEVICE_NAME = 'Phone';
     startApp();
 })();
 
