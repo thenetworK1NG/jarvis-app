@@ -95,78 +95,13 @@
   }
 
   /* ── chat ──────────────────────────────────────────── */
+  /* Rendering + history live in index.html (window.JarvisChat).
+     This file is the transport: Firebase sync in, store calls out. */
   var messagesEl = $('messages');
   var inputEl = $('input');
-  var rendered = {};
   var typingEl = null;
-  var activeChatId = null;
-  try {
-    window.addEventListener('message', function (e) {
-      if (e.data && e.data.type === 'jarvis-chat-active') {
-        activeChatId = e.data.chatId;
-      }
-    });
-  } catch (e) {}
+  window.__SYNC = SYNC;   // history engine uses this for hydration/clear
 
-  function fmtTime(ts) {
-    if (!ts) return '';
-    return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }
-
-  var URL_RE = /(https?:\/\/[^\s<>'")\]]+)/g;
-  function linkify(s) {
-    var parts = s.split(URL_RE);
-    var frag = document.createDocumentFragment();
-    for (var i = 0; i < parts.length; i++) {
-      if (i % 2 === 1) {
-        var a = document.createElement('a');
-        a.href = parts[i];
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.textContent = parts[i];
-        frag.appendChild(a);
-      } else {
-        frag.appendChild(document.createTextNode(parts[i]));
-      }
-    }
-    return frag;
-  }
-
-  function bubble(cls, text, ts) {
-    var el = document.createElement('div');
-    el.className = 'msg ' + cls;
-    el.appendChild(linkify(text));
-    var t = document.createElement('span');
-    t.className = 'time';
-    t.textContent = fmtTime(ts);
-    el.appendChild(t);
-    // Tap to copy
-    el.addEventListener('click', function () {
-      if (window.getSelection && window.getSelection().toString()) return;
-      var raw = (cls === 'me' ? 'You: ' : 'J.A.R.V.I.S.: ') + text;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(raw).then(function () { toast('Copied to clipboard'); });
-      } else {
-        var ta = document.createElement('textarea');
-        ta.value = raw; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); toast('Copied to clipboard'); } catch (e) {}
-        document.body.removeChild(ta);
-      }
-    });
-    return el;
-  }
-
-  function stepBubble(text) {
-    var el = document.createElement('div');
-    el.className = 'msg step';
-    el.textContent = text;
-    return el;
-  }
-
-  function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
-
-  var thinkingTimer = null;
   function showTyping() {
     if (typingEl) return;
     thinkingState = true;
@@ -181,7 +116,7 @@
       typingEl.appendChild(d);
     }
     messagesEl.appendChild(typingEl);
-    scrollBottom();
+    if (window.JarvisChat) window.JarvisChat.stick();
     if (thinkingTimer) clearTimeout(thinkingTimer);
     thinkingTimer = setTimeout(hideTyping, 60000);
   }
@@ -194,102 +129,32 @@
     paintChatStatus(true, false);
   }
 
-  function renderSteps(steps) {
-    if (!steps || typeof steps !== 'object') return;
-    var keys = Object.keys(steps).sort();
-    for (var i = 0; i < keys.length; i++) {
-      var s = steps[keys[i]];
-      if (!s) continue;
-      var label = '';
-      if (s.type === 'tool') {
-        label = (s.name || 'tool') + (s.target ? ' ' + s.target : '');
-        if (s.status) label += ' \u2022 ' + s.status;
-      } else if (s.type === 'step') {
-        label = 'Working\u2026 step ' + (s.stage || '');
-      } else if (s.text) {
-        label = s.text;
-      }
-      if (label) messagesEl.appendChild(stepBubble(label));
-    }
-  }
-
-  function render(msg, key) {
-    if (rendered[key]) return;
-    rendered[key] = true;
-    var text = (msg.text || '').trim();
-    var reply = (msg.reply || '').trim();
-    if (text) messagesEl.appendChild(bubble('me', text, msg.ts));
-    if (msg.steps) renderSteps(msg.steps);
-    if (reply) {
-      messagesEl.appendChild(bubble('jarvis', reply, msg.repliedAt || msg.ts));
-    }
-    scrollBottom();
-  }
-
-  function update(msg, key) {
-    if (!rendered[key]) { render(msg, key); return; }
-    var reply = (msg.reply || '').trim();
-    if (reply && !rendered[key + ':r']) {
-      rendered[key + ':r'] = true;
-      messagesEl.appendChild(bubble('jarvis', reply, msg.repliedAt || msg.ts));
-      scrollBottom();
+  function ingestSnap(snap) {
+    if (!window.JarvisChat) return;
+    var m = snap.val() || {};
+    var key = snap.key;
+    var rd = m.reply_data || {};
+    var reply = ((rd.reply || m.reply) + '').trim();
+    var sender = rd.sender || m.sender || '';
+    var isAssistantReply = !!reply && (sender === 'assistant' || !sender);
+    window.JarvisChat.ingest({
+      key: key,
+      chatId: m.chatId,
+      text: (sender !== 'assistant' && m.text) ? String(m.text).trim() : '',
+      reply: isAssistantReply ? reply : '',
+      steps: rd.steps || m.steps,
+      repliedAt: rd.repliedAt || m.repliedAt,
+      ts: m.ts
+    });
+    if (isAssistantReply) {
+      hideTyping();
       if (window._jarvisTTS) window._jarvisTTS(reply);
     }
   }
 
   if (SYNC) {
-    SYNC.orderByChild('ts').on('child_added', function (snap) {
-      var msg = snap.val() || {};
-      var key = snap.key;
-      if (rendered[key]) return;
-      var sender = msg.sender || '';
-      var text = (msg.text || '').trim();
-      var replyData = msg.reply_data || {};
-      var reply = (replyData.reply || msg.reply || '').trim();
-      var replySender = replyData.sender || sender;
-      if (sender === 'user' && text) {
-        rendered[key] = true;
-        messagesEl.appendChild(bubble('me', text, msg.ts));
-        scrollBottom();
-      }
-      if (reply && replySender === 'assistant' && !rendered[key + ':r']) {
-        rendered[key + ':r'] = true;
-        if (!rendered[key]) {
-          messagesEl.appendChild(bubble('me', text || '(phone message)', msg.ts));
-          rendered[key] = true;
-        }
-        messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || msg.ts));
-        if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
-        scrollBottom();
-        hideTyping();
-        if (window._jarvisTTS) window._jarvisTTS(reply);
-      }
-      if (!sender && text && !reply) {
-        rendered[key] = true;
-        messagesEl.appendChild(bubble('me', text, msg.ts));
-        scrollBottom();
-      }
-    });
-    SYNC.orderByChild('ts').on('child_changed', function (snap) {
-      var msg = snap.val() || {};
-      var key = snap.key;
-      var replyData = msg.reply_data || {};
-      var reply = (replyData.reply || msg.reply || '').trim();
-      var sender = msg.sender || '';
-      var replySender = replyData.sender || sender;
-      if (reply && replySender === 'assistant' && !rendered[key + ':r']) {
-        rendered[key + ':r'] = true;
-        if (!rendered[key]) {
-          messagesEl.appendChild(bubble('me', text || msg.text || '(phone message)', msg.ts));
-          rendered[key] = true;
-        }
-        messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || Date.now()));
-        if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
-        scrollBottom();
-        hideTyping();
-        if (window._jarvisTTS) window._jarvisTTS(reply);
-      }
-    });
+    SYNC.orderByChild('ts').on('child_added', ingestSnap);
+    SYNC.orderByChild('ts').on('child_changed', ingestSnap);
   }
 
   function autoGrow() {
@@ -300,11 +165,11 @@
   function sendChat() {
     var text = inputEl.value.trim();
     if (!text) return;
-    if (!SYNC) { toast('No chat link — is Firebase reachable?'); return; }
-    var chatId = activeChatId || window.activeChatId || 'default';
+    if (!SYNC || !window.JarvisChat) { toast('No chat link — is Firebase reachable?'); return; }
     showTyping();
+    window.JarvisChat.localUser(text);
     SYNC.push({
-      chatId: chatId,
+      chatId: window.JarvisChat.activeId(),
       sender: 'user',
       text: text,
       ts: Date.now(),
@@ -336,18 +201,19 @@
   });
   inputEl.addEventListener('input', autoGrow);
 
-  /* clear chat */
+  /* clear chat (active chat only) */
   var clearBackdrop = $('clearBackdrop');
   $('clearChat').addEventListener('click', function () { clearBackdrop.classList.add('show'); });
   $('clearCancel').addEventListener('click', function () { clearBackdrop.classList.remove('show'); });
   $('clearGo').addEventListener('click', function () {
     clearBackdrop.classList.remove('show');
-    if (SYNC) SYNC.remove().catch(function () {});
-    rendered = {};
-    messagesEl.innerHTML = '';
+    if (window.JarvisChat) window.JarvisChat.clearActive();
     hideTyping();
-    toast('Comms log cleared');
+    toast('Chat cleared');
   });
+
+  /* expose toast to the history engine */
+  window.__toast = toast;
 
   /* chat status (inside comms log) */
   var statusEl = $('conn-status');
