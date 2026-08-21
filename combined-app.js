@@ -95,13 +95,78 @@
   }
 
   /* ── chat ──────────────────────────────────────────── */
-  /* Rendering + history live in index.html (window.JarvisChat).
-     This file is the transport: Firebase sync in, store calls out. */
   var messagesEl = $('messages');
   var inputEl = $('input');
+  var rendered = {};
   var typingEl = null;
-  window.__SYNC = SYNC;   // history engine uses this for hydration/clear
+  var activeChatId = null;
+  try {
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.type === 'jarvis-chat-active') {
+        activeChatId = e.data.chatId;
+      }
+    });
+  } catch (e) {}
 
+  function fmtTime(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  var URL_RE = /(https?:\/\/[^\s<>'")\]]+)/g;
+  function linkify(s) {
+    var parts = s.split(URL_RE);
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < parts.length; i++) {
+      if (i % 2 === 1) {
+        var a = document.createElement('a');
+        a.href = parts[i];
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = parts[i];
+        frag.appendChild(a);
+      } else {
+        frag.appendChild(document.createTextNode(parts[i]));
+      }
+    }
+    return frag;
+  }
+
+  function bubble(cls, text, ts) {
+    var el = document.createElement('div');
+    el.className = 'msg ' + cls;
+    el.appendChild(linkify(text));
+    var t = document.createElement('span');
+    t.className = 'time';
+    t.textContent = fmtTime(ts);
+    el.appendChild(t);
+    // Tap to copy
+    el.addEventListener('click', function () {
+      if (window.getSelection && window.getSelection().toString()) return;
+      var raw = (cls === 'me' ? 'You: ' : 'J.A.R.V.I.S.: ') + text;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(raw).then(function () { toast('Copied to clipboard'); });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = raw; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); toast('Copied to clipboard'); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+    return el;
+  }
+
+  function stepBubble(text) {
+    var el = document.createElement('div');
+    el.className = 'msg step';
+    el.textContent = text;
+    return el;
+  }
+
+  function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+  var thinkingTimer = null;
   function showTyping() {
     if (typingEl) return;
     thinkingState = true;
@@ -116,17 +181,12 @@
       typingEl.appendChild(d);
     }
     messagesEl.appendChild(typingEl);
-    if (window.JarvisChat) window.JarvisChat.stick();
+    scrollBottom();
     if (thinkingTimer) clearTimeout(thinkingTimer);
     thinkingTimer = setTimeout(hideTyping, 60000);
-    if (!wdTimer) {
-      setTimeout(wdPoll, 4000);
-      wdTimer = setInterval(wdPoll, 10000);
-    }
   }
   function hideTyping() {
     if (thinkingTimer) { clearTimeout(thinkingTimer); thinkingTimer = null; }
-    if (wdTimer) { clearInterval(wdTimer); wdTimer = null; }
     if (typingEl) { typingEl.remove(); typingEl = null; }
     var stopBtn = $('stop-btn');
     if (stopBtn) stopBtn.classList.add('hidden');
@@ -134,48 +194,102 @@
     paintChatStatus(true, false);
   }
 
-  function ingestSnap(snap) {
-    if (!window.JarvisChat) return;
-    var m = snap.val() || {};
-    var key = snap.key;
-    var rd = m.reply_data || {};
-    var reply = ((rd.reply || m.reply) + '').trim();
-    var sender = rd.sender || m.sender || '';
-    var isAssistantReply = !!reply && (sender === 'assistant' || !sender);
-    window.JarvisChat.ingest({
-      key: key,
-      chatId: m.chatId,
-      text: (sender !== 'assistant' && m.text) ? String(m.text).trim() : '',
-      reply: isAssistantReply ? reply : '',
-      steps: rd.steps || m.steps,
-      repliedAt: rd.repliedAt || m.repliedAt,
-      ts: m.ts
-    });
-    /* Only end "typing" / speak when the reply belongs to the chat we're
-       looking at — background chats must not touch the indicator. */
-    if (isAssistantReply && (!m.chatId || m.chatId === window.JarvisChat.activeId())) {
-      hideTyping();
+  function renderSteps(steps) {
+    if (!steps || typeof steps !== 'object') return;
+    var keys = Object.keys(steps).sort();
+    for (var i = 0; i < keys.length; i++) {
+      var s = steps[keys[i]];
+      if (!s) continue;
+      var label = '';
+      if (s.type === 'tool') {
+        label = (s.name || 'tool') + (s.target ? ' ' + s.target : '');
+        if (s.status) label += ' \u2022 ' + s.status;
+      } else if (s.type === 'step') {
+        label = 'Working\u2026 step ' + (s.stage || '');
+      } else if (s.text) {
+        label = s.text;
+      }
+      if (label) messagesEl.appendChild(stepBubble(label));
+    }
+  }
+
+  function render(msg, key) {
+    if (rendered[key]) return;
+    rendered[key] = true;
+    var text = (msg.text || '').trim();
+    var reply = (msg.reply || '').trim();
+    if (text) messagesEl.appendChild(bubble('me', text, msg.ts));
+    if (msg.steps) renderSteps(msg.steps);
+    if (reply) {
+      messagesEl.appendChild(bubble('jarvis', reply, msg.repliedAt || msg.ts));
+    }
+    scrollBottom();
+  }
+
+  function update(msg, key) {
+    if (!rendered[key]) { render(msg, key); return; }
+    var reply = (msg.reply || '').trim();
+    if (reply && !rendered[key + ':r']) {
+      rendered[key + ':r'] = true;
+      messagesEl.appendChild(bubble('jarvis', reply, msg.repliedAt || msg.ts));
+      scrollBottom();
       if (window._jarvisTTS) window._jarvisTTS(reply);
     }
   }
 
-  /* Typing watchdog: Firebase events can get lost (socket drop, PC network
-     hiccup). While the indicator is up, re-poll the active chat's last few
-     messages so a reply that already landed on the server is picked up. */
-  var wdTimer = null;
-  function wdPoll() {
-    if (!typingEl || !SYNC || !window.JarvisChat) return;
-    try {
-      SYNC.orderByChild('chatId').equalTo(window.JarvisChat.activeId())
-        .limitToLast(6).once('value').then(function (snap) {
-          snap.forEach(function (ch) { try { ingestSnap(ch); } catch (_) {} });
-        }).catch(function () {});
-    } catch (_) {}
-  }
-
   if (SYNC) {
-    SYNC.orderByChild('ts').on('child_added', ingestSnap);
-    SYNC.orderByChild('ts').on('child_changed', ingestSnap);
+    SYNC.orderByChild('ts').on('child_added', function (snap) {
+      var msg = snap.val() || {};
+      var key = snap.key;
+      if (rendered[key]) return;
+      var sender = msg.sender || '';
+      var text = (msg.text || '').trim();
+      var replyData = msg.reply_data || {};
+      var reply = (replyData.reply || msg.reply || '').trim();
+      var replySender = replyData.sender || sender;
+      if (sender === 'user' && text) {
+        rendered[key] = true;
+        messagesEl.appendChild(bubble('me', text, msg.ts));
+        scrollBottom();
+      }
+      if (reply && replySender === 'assistant' && !rendered[key + ':r']) {
+        rendered[key + ':r'] = true;
+        if (!rendered[key]) {
+          messagesEl.appendChild(bubble('me', text || '(phone message)', msg.ts));
+          rendered[key] = true;
+        }
+        messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || msg.ts));
+        if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
+        scrollBottom();
+        hideTyping();
+        if (window._jarvisTTS) window._jarvisTTS(reply);
+      }
+      if (!sender && text && !reply) {
+        rendered[key] = true;
+        messagesEl.appendChild(bubble('me', text, msg.ts));
+        scrollBottom();
+      }
+    });
+    SYNC.orderByChild('ts').on('child_changed', function (snap) {
+      var msg = snap.val() || {};
+      var key = snap.key;
+      var replyData = msg.reply_data || {};
+      var reply = (replyData.reply || msg.reply || '').trim();
+      var sender = msg.sender || '';
+      var replySender = replyData.sender || sender;
+      if (reply && replySender === 'assistant' && !rendered[key + ':r']) {
+        rendered[key + ':r'] = true;
+        if (!rendered[key]) {
+          messagesEl.appendChild(bubble('me', text || msg.text || '(phone message)', msg.ts));
+          rendered[key] = true;
+        }
+        messagesEl.appendChild(bubble('jarvis', reply, replyData.repliedAt || msg.repliedAt || Date.now()));
+        if (replyData.steps || msg.steps) renderSteps(replyData.steps || msg.steps);
+        scrollBottom();
+        hideTyping();
+        if (window._jarvisTTS) window._jarvisTTS(reply);
+      }
+    });
   }
 
   function autoGrow() {
@@ -183,94 +297,22 @@
     inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
   }
 
-  /* ── guaranteed delivery ─────────────────────────────
-     A push made before Firebase's socket is up can sit in a local queue
-     with no ack and no error. So every message gets a stable dedupId and
-     is re-pushed every 5s until it is actually SEEN on the server. The
-     backend skips duplicates via that same dedupId. */
-  var pendingSends = [];
-  var deliveryTimer = null;
-
-  function pushPending(p) {
-    try {
-      var ref = SYNC.push();
-      p.key = ref.key;
-      ref.set(p.msg, function (err) {
-        if (!err) p.done = true;   // server acked (optimistic; tick verifies)
-      });
-    } catch (_) { p.key = null; }
-  }
-
-  function deliver(text) {
-    var msg = {
-      chatId: window.JarvisChat.activeId(),
+  function sendChat() {
+    var text = inputEl.value.trim();
+    if (!text) return;
+    if (!SYNC) { toast('No chat link — is Firebase reachable?'); return; }
+    var chatId = activeChatId || window.activeChatId || 'default';
+    showTyping();
+    SYNC.push({
+      chatId: chatId,
       sender: 'user',
       text: text,
       ts: Date.now(),
       processed: false,
-      from: 'phone',
-      dedupId: 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-    };
-    var p = { key: null, msg: msg, tries: 0, born: Date.now(), done: false };
-    pendingSends.push(p);
-    pushPending(p);
-    if (!deliveryTimer) {
-      setTimeout(deliveryTick, 3000);
-      deliveryTimer = setInterval(deliveryTick, 5000);
-    }
-  }
-
-  function deliveryTick() {
-    if (!SYNC || !window.JarvisChat || !pendingSends.length) return;
-    var cid = window.JarvisChat.activeId();
-    try {
-      SYNC.orderByChild('chatId').equalTo(cid).limitToLast(12).once('value')
-        .then(function (snap) {
-          var keys = {};
-          snap.forEach(function (ch) { keys[ch.key] = 1; });
-          var now = Date.now();
-          for (var i = pendingSends.length - 1; i >= 0; i--) {
-            var p = pendingSends[i];
-            if (p.msg.chatId !== cid) continue;
-            if ((p.key && keys[p.key]) || p.done) {   // confirmed on server
-              pendingSends.splice(i, 1);
-              continue;
-            }
-            if (now - p.born > 7000 && p.tries < 6) {
-              p.tries++;
-              p.born = now;
-              if (p.tries === 2 && window.__toast) window.__toast('Connection slow \u2014 resending\u2026');
-              pushPending(p);
-            } else if (p.tries >= 6 && now - p.born > 15000) {
-              pendingSends.splice(i, 1);
-              if (window.__toast) window.__toast('Message failed to send.');
-              if (!pendingSends.length) hideTyping();
-            }
-          }
-          if (!pendingSends.length && deliveryTimer) {
-            clearInterval(deliveryTimer);
-            deliveryTimer = null;
-          }
-        }).catch(function () {});
-    } catch (_) {}
-  }
-
-  var sendBusy = false;
-  function sendChat() {
-    if (sendBusy) return;
-    var text = inputEl.value.trim();
-    if (!text) return;
-    if (!SYNC || !window.JarvisChat) { toast('No chat link — is Firebase reachable?'); return; }
-    sendBusy = true;
-    setTimeout(function () { sendBusy = false; }, 500);
-    /* kill any live STT session FIRST, then clear the box immediately so a
-       second tap finds an empty input and can never double-send */
-    if (window.__jarvisSTTReset) window.__jarvisSTTReset();
+      from: 'phone'
+    });
     inputEl.value = '';
     autoGrow();
-    showTyping();
-    window.JarvisChat.localUser(text);
-    deliver(text);
     inputEl.focus();
   }
   $('send').addEventListener('click', sendChat);
@@ -294,19 +336,18 @@
   });
   inputEl.addEventListener('input', autoGrow);
 
-  /* clear chat (active chat only) */
+  /* clear chat */
   var clearBackdrop = $('clearBackdrop');
   $('clearChat').addEventListener('click', function () { clearBackdrop.classList.add('show'); });
   $('clearCancel').addEventListener('click', function () { clearBackdrop.classList.remove('show'); });
   $('clearGo').addEventListener('click', function () {
     clearBackdrop.classList.remove('show');
-    if (window.JarvisChat) window.JarvisChat.clearActive();
+    if (SYNC) SYNC.remove().catch(function () {});
+    rendered = {};
+    messagesEl.innerHTML = '';
     hideTyping();
-    toast('Chat cleared');
+    toast('Comms log cleared');
   });
-
-  /* expose toast to the history engine */
-  window.__toast = toast;
 
   /* chat status (inside comms log) */
   var statusEl = $('conn-status');
@@ -478,17 +519,6 @@
       try { rec.start(); }
       catch (e) { setListening(false); shouldRestart = false; }
     }
-
-    /* Send calls this so a trailing STT result can't resurrect cleared
-       text back into the box (looked like "send did nothing"). */
-    window.__jarvisSTTReset = function () {
-      confirmedText = '';
-      shouldRestart = false;
-      if (listening) {
-        try { rec.abort(); } catch (e) {}
-        setListening(false);
-      }
-    };
 
     rec.onresult = function (e) {
       var interim = '';
