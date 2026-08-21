@@ -1,11 +1,11 @@
 'use strict';
-var CACHE = 'jarvis-command-v9';
+var CACHE = 'jarvis-command-v10';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js?v=9',
-  './combined-app.js?v=9',
+  './app.js?v=10',
+  './combined-app.js?v=10',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
@@ -13,11 +13,13 @@ var ASSETS = [
   './sound/scan.mp3',
   './sound/sent.mp3'
 ];
+
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) {
     return c.addAll(ASSETS);
   }).then(function () { return self.skipWaiting(); }));
 });
+
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
     return Promise.all(keys.filter(function (k) { return k !== CACHE; })
