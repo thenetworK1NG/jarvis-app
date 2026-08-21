@@ -1,11 +1,11 @@
 ﻿'use strict';
-var CACHE = 'jarvis-command-v13';
+var CACHE = 'jarvis-command-v16';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './app.js?v=13',
-  './combined-app.js?v=13',
+  './app.js?v=16',
+  './combined-app.js?v=16',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
@@ -16,7 +16,11 @@ var ASSETS = [
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) {
-    return c.addAll(ASSETS);
+    // Cache each asset individually — a single 404 must NEVER fail the
+    // install (that froze the PWA on old code after every rebuild).
+    return Promise.all(ASSETS.map(function (a) {
+      return c.add(a).catch(function () {});
+    }));
   }).then(function () { return self.skipWaiting(); }));
 });
 
@@ -79,9 +83,28 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // Normal GET requests: cache-first
+  // Normal GET requests
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
+
+  // Navigations (app opens): NETWORK-FIRST so a rebuilt deploy always
+  // reaches the phone on the next launch; cache is the offline fallback.
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put('./index.html', copy); });
+        return res;
+      }).catch(function () {
+        return caches.match('./index.html').then(function (hit) {
+          return hit || new Response('Offline', { status: 503 });
+        });
+      })
+    );
+    return;
+  }
+
+  // Static assets: cache-first (they carry ?v=NN bust strings)
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       return hit || fetch(e.request).then(function (res) {
