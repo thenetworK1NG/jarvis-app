@@ -183,10 +183,19 @@
     inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
   }
 
+  var sendBusy = false;
   function sendChat() {
+    if (sendBusy) return;
     var text = inputEl.value.trim();
     if (!text) return;
     if (!SYNC || !window.JarvisChat) { toast('No chat link — is Firebase reachable?'); return; }
+    sendBusy = true;
+    setTimeout(function () { sendBusy = false; }, 500);
+    /* kill any live STT session FIRST, then clear the box immediately so a
+       second tap finds an empty input and can never double-send */
+    if (window.__jarvisSTTReset) window.__jarvisSTTReset();
+    inputEl.value = '';
+    autoGrow();
     showTyping();
     window.JarvisChat.localUser(text);
     SYNC.push({
@@ -197,8 +206,6 @@
       processed: false,
       from: 'phone'
     });
-    inputEl.value = '';
-    autoGrow();
     inputEl.focus();
   }
   $('send').addEventListener('click', sendChat);
@@ -406,6 +413,17 @@
       try { rec.start(); }
       catch (e) { setListening(false); shouldRestart = false; }
     }
+
+    /* Send calls this so a trailing STT result can't resurrect cleared
+       text back into the box (looked like "send did nothing"). */
+    window.__jarvisSTTReset = function () {
+      confirmedText = '';
+      shouldRestart = false;
+      if (listening) {
+        try { rec.abort(); } catch (e) {}
+        setListening(false);
+      }
+    };
 
     rec.onresult = function (e) {
       var interim = '';
